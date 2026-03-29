@@ -1,0 +1,9 @@
+{
+  "items": [
+    {
+      "path": "sre-lab",
+      "title": "SRE Interview Lab",
+      "description": "Kubernetes troubleshooting assessment — 6 broken deployments"
+    }
+  ]
+}
