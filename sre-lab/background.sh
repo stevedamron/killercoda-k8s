@@ -7,6 +7,19 @@ done
 sleep 5
 
 # ============================================================
+# CLUSTER PREREQUISITES
+# Install local-path-provisioner so PVC scenarios work correctly.
+# This gives us a "local-path" StorageClass (RWO only).
+# ============================================================
+kubectl apply -f https://raw.githubusercontent.com/rancher/local-path-provisioner/v0.0.26/deploy/local-path-storage.yaml 2>/dev/null
+kubectl wait --for=condition=Ready pods -l app=local-path-provisioner -n local-path-storage --timeout=60s 2>/dev/null
+
+# Ensure Helm is available
+if ! command -v helm &>/dev/null; then
+  curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash 2>/dev/null
+fi
+
+# ============================================================
 # BEGINNER SCENARIOS
 # ============================================================
 
@@ -422,7 +435,8 @@ spec:
               nginx -g 'daemon off;'
 EOF
 
-# call-recording: StatefulSet with wrong PVC accessMode (ReadWriteMany not supported)
+# call-recording: StatefulSet with wrong PVC accessMode
+# local-path-provisioner only supports ReadWriteOnce — ReadWriteMany will fail
 kubectl create namespace call-recording
 cat <<'EOF' | kubectl apply -f -
 apiVersion: apps/v1
@@ -451,6 +465,7 @@ spec:
     - metadata:
         name: recording-data
       spec:
+        storageClassName: local-path
         accessModes: ["ReadWriteMany"]
         resources:
           requests:
