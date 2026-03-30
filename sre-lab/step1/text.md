@@ -37,4 +37,3 @@ Your manager says: *"Before you go on-call, spend some time getting familiar wit
 ### Review service networking
 16. List all **endpoints** for `route-engine-svc` in `call-routing`
 17. What **ClusterIP** is assigned to `route-engine-svc` in `call-routing`?
-18. **Expose** the `cdr-writer` deployment in `cdr-storage` as a new ClusterIP service on port 80
