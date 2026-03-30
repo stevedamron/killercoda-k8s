@@ -14,56 +14,9 @@ sleep 5
 kubectl apply -f https://raw.githubusercontent.com/rancher/local-path-provisioner/v0.0.26/deploy/local-path-storage.yaml 2>/dev/null
 kubectl wait --for=condition=Ready pods -l app=local-path-provisioner -n local-path-storage --timeout=60s 2>/dev/null
 
-# Ensure Helm is available
-if ! command -v helm &>/dev/null; then
-  curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash 2>/dev/null
-fi
-
 # ============================================================
-# BEGINNER SCENARIOS
+# BEGINNER (warmup — quick wins to build confidence)
 # ============================================================
-
-# cdr-storage: PVC with nonexistent StorageClass
-kubectl create namespace cdr-storage
-cat <<'EOF' | kubectl apply -f -
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: cdr-data
-  namespace: cdr-storage
-spec:
-  accessModes: [ReadWriteOnce]
-  storageClassName: fast-ssd
-  resources:
-    requests:
-      storage: 1Gi
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: cdr-writer
-  namespace: cdr-storage
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: cdr-writer
-  template:
-    metadata:
-      labels:
-        app: cdr-writer
-    spec:
-      containers:
-        - name: app
-          image: nginx:1.25
-          volumeMounts:
-            - name: data
-              mountPath: /data
-      volumes:
-        - name: data
-          persistentVolumeClaim:
-            claimName: cdr-data
-EOF
 
 # provisioning: Missing secret reference
 kubectl create namespace provisioning
@@ -125,36 +78,50 @@ spec:
             - containerPort: 80
 EOF
 
-# alerting: Missing ConfigMap mount
-kubectl create namespace alerting
+# cdr-storage: PVC with nonexistent StorageClass
+kubectl create namespace cdr-storage
 cat <<'EOF' | kubectl apply -f -
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: cdr-data
+  namespace: cdr-storage
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: fast-ssd
+  resources:
+    requests:
+      storage: 1Gi
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: alert-dispatcher
-  namespace: alerting
+  name: cdr-writer
+  namespace: cdr-storage
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: alert-dispatcher
+      app: cdr-writer
   template:
     metadata:
       labels:
-        app: alert-dispatcher
+        app: cdr-writer
     spec:
       containers:
         - name: app
           image: nginx:1.25
-          envFrom:
-            - configMapRef:
-                name: pagerduty-config
-          ports:
-            - containerPort: 80
+          volumeMounts:
+            - name: data
+              mountPath: /data
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: cdr-data
 EOF
 
 # ============================================================
-# INTERMEDIATE SCENARIOS
+# INTERMEDIATE (core troubleshooting — the real differentiators)
 # ============================================================
 
 # admin-portal: Service selector mismatch
@@ -235,53 +202,6 @@ spec:
   type: ClusterIP
 EOF
 
-# sbc-proxy: Bad Helm image tag
-kubectl create namespace sbc-proxy
-helm repo add bitnami https://charts.bitnami.com/bitnami 2>/dev/null
-helm repo update 2>/dev/null
-helm upgrade --install edge-proxy bitnami/nginx \
-  --namespace sbc-proxy \
-  --set image.tag=99.99.99-doesnotexist \
-  --wait=false 2>/dev/null
-
-# registration: Liveness probe wrong port
-kubectl create namespace registration
-cat <<'EOF' | kubectl apply -f -
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: reg-service
-  namespace: registration
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: reg-service
-  template:
-    metadata:
-      labels:
-        app: reg-service
-    spec:
-      containers:
-        - name: app
-          image: nginx:1.25
-          ports:
-            - containerPort: 80
-          livenessProbe:
-            httpGet:
-              path: /healthz
-              port: 8080
-            initialDelaySeconds: 5
-            periodSeconds: 5
-            failureThreshold: 3
-          readinessProbe:
-            httpGet:
-              path: /
-              port: 80
-            initialDelaySeconds: 5
-            periodSeconds: 5
-EOF
-
 # number-porting: Namespace quota exceeded
 kubectl create namespace number-porting
 cat <<'EOF' | kubectl apply -f -
@@ -314,52 +234,6 @@ spec:
           image: nginx:1.25
           ports:
             - containerPort: 80
-EOF
-
-# directory: Readiness probe failing (pod Running but 0/1 Ready)
-kubectl create namespace directory
-cat <<'EOF' | kubectl apply -f -
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: lookup-service
-  namespace: directory
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: lookup-service
-  template:
-    metadata:
-      labels:
-        app: lookup-service
-    spec:
-      containers:
-        - name: app
-          image: nginx:1.25
-          ports:
-            - containerPort: 80
-          readinessProbe:
-            httpGet:
-              path: /ready
-              port: 80
-            initialDelaySeconds: 5
-            periodSeconds: 3
-            failureThreshold: 3
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: lookup-service-svc
-  namespace: directory
-spec:
-  selector:
-    app: lookup-service
-  ports:
-    - protocol: TCP
-      port: 80
-      targetPort: 80
-  type: ClusterIP
 EOF
 
 # media-processing: Node affinity — no matching node
@@ -397,7 +271,7 @@ spec:
 EOF
 
 # ============================================================
-# ADVANCED SCENARIOS
+# ADVANCED (deeper debugging — separates senior from mid)
 # ============================================================
 
 # service-mesh: DNS broken — pod dnsPolicy set to None with no dnsConfig
@@ -433,55 +307,6 @@ spec:
                 sleep 5
               done
               nginx -g 'daemon off;'
-EOF
-
-# call-recording: StatefulSet with wrong PVC accessMode
-# local-path-provisioner only supports ReadWriteOnce — ReadWriteMany will fail
-kubectl create namespace call-recording
-cat <<'EOF' | kubectl apply -f -
-apiVersion: apps/v1
-kind: StatefulSet
-metadata:
-  name: recording-writer
-  namespace: call-recording
-spec:
-  serviceName: recording-writer
-  replicas: 1
-  selector:
-    matchLabels:
-      app: recording-writer
-  template:
-    metadata:
-      labels:
-        app: recording-writer
-    spec:
-      containers:
-        - name: app
-          image: nginx:1.25
-          volumeMounts:
-            - name: recording-data
-              mountPath: /var/recordings
-  volumeClaimTemplates:
-    - metadata:
-        name: recording-data
-      spec:
-        storageClassName: local-path
-        accessModes: ["ReadWriteMany"]
-        resources:
-          requests:
-            storage: 1Gi
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: recording-writer
-  namespace: call-recording
-spec:
-  clusterIP: None
-  selector:
-    app: recording-writer
-  ports:
-    - port: 80
 EOF
 
 sleep 5
