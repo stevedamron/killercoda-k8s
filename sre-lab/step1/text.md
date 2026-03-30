@@ -1,31 +1,31 @@
 # Troubleshoot the Cluster
 
-The following namespaces each have a broken deployment. Diagnose and fix as many as you can.
+You've inherited a communications platform cluster with multiple broken services. Diagnose and fix as many as you can.
 
 ### Beginner
-| Namespace | Hint |
-|-----------|------|
-| `data-store` | Something is preventing the pod from being scheduled |
-| `payments` | The pod can't start — check its configuration dependencies |
-| `analytics` | The pod keeps crashing immediately after starting |
-| `notifications` | The pod can't start — similar to payments but different resource type |
+| Namespace | Service | Hint |
+|-----------|---------|------|
+| `cdr-storage` | CDR Writer | Something is preventing the pod from being scheduled |
+| `provisioning` | Account Provisioner | The pod can't start — check its configuration dependencies |
+| `call-analytics` | Metrics Aggregator | The pod keeps crashing immediately after starting |
+| `alerting` | Alert Dispatcher | The pod can't start — similar to provisioning but different resource type |
 
 ### Intermediate
-| Namespace | Hint |
-|-----------|------|
-| `frontend` | Pods are running but the service isn't routing traffic |
-| `checkout` | Pods are running and service has endpoints, but connections are refused |
-| `proxy` | A Helm release was deployed with bad configuration |
-| `backend-api` | The pod starts but gets killed repeatedly |
-| `batch-jobs` | Not all replicas are coming up — but no pod-level errors |
-| `search` | Pod is running but shows 0/1 ready — service has no endpoints |
-| `compute` | Pod is stuck pending — no node can satisfy the requirements |
+| Namespace | Service | Hint |
+|-----------|---------|------|
+| `admin-portal` | Portal UI | Pods are running but the service isn't routing traffic |
+| `call-routing` | Route Engine | Pods are running and service has endpoints, but connections are refused |
+| `sbc-proxy` | Edge Proxy | A Helm release was deployed with bad configuration |
+| `registration` | Reg Service | The pod starts but gets killed repeatedly |
+| `number-porting` | Port Processor | Not all replicas are coming up — but no pod-level errors |
+| `directory` | Lookup Service | Pod is running but shows 0/1 ready — service has no endpoints |
+| `media-processing` | Transcoder | Pod is stuck pending — no node can satisfy the requirements |
 
 ### Advanced
-| Namespace | Hint |
-|-----------|------|
-| `discovery` | Pod is running but the application inside can't resolve DNS |
-| `logging` | StatefulSet pod won't provision its storage |
+| Namespace | Service | Hint |
+|-----------|---------|------|
+| `service-mesh` | Consul Agent | Pod is running but the application inside can't resolve DNS |
+| `call-recording` | Recording Writer | StatefulSet pod won't provision its storage |
 
 ## Useful starting points
 

@@ -10,14 +10,14 @@ sleep 5
 # BEGINNER SCENARIOS
 # ============================================================
 
-# data-store: PVC with nonexistent StorageClass
-kubectl create namespace data-store
+# cdr-storage: PVC with nonexistent StorageClass
+kubectl create namespace cdr-storage
 cat <<'EOF' | kubectl apply -f -
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: app-data
-  namespace: data-store
+  name: cdr-data
+  namespace: cdr-storage
 spec:
   accessModes: [ReadWriteOnce]
   storageClassName: fast-ssd
@@ -28,20 +28,20 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: redis-cache
-  namespace: data-store
+  name: cdr-writer
+  namespace: cdr-storage
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: redis-cache
+      app: cdr-writer
   template:
     metadata:
       labels:
-        app: redis-cache
+        app: cdr-writer
     spec:
       containers:
-        - name: redis
+        - name: app
           image: nginx:1.25
           volumeMounts:
             - name: data
@@ -49,26 +49,26 @@ spec:
       volumes:
         - name: data
           persistentVolumeClaim:
-            claimName: app-data
+            claimName: cdr-data
 EOF
 
-# payments: Missing secret reference
-kubectl create namespace payments
+# provisioning: Missing secret reference
+kubectl create namespace provisioning
 cat <<'EOF' | kubectl apply -f -
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: payment-processor
-  namespace: payments
+  name: account-provisioner
+  namespace: provisioning
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: payment-processor
+      app: account-provisioner
   template:
     metadata:
       labels:
-        app: payment-processor
+        app: account-provisioner
     spec:
       containers:
         - name: app
@@ -80,23 +80,23 @@ spec:
             - containerPort: 80
 EOF
 
-# analytics: OOMKilled (4Mi limit)
-kubectl create namespace analytics
+# call-analytics: OOMKilled (4Mi limit)
+kubectl create namespace call-analytics
 cat <<'EOF' | kubectl apply -f -
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: event-aggregator
-  namespace: analytics
+  name: metrics-aggregator
+  namespace: call-analytics
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: event-aggregator
+      app: metrics-aggregator
   template:
     metadata:
       labels:
-        app: event-aggregator
+        app: metrics-aggregator
     spec:
       containers:
         - name: app
@@ -112,30 +112,30 @@ spec:
             - containerPort: 80
 EOF
 
-# notifications: Missing ConfigMap mount
-kubectl create namespace notifications
+# alerting: Missing ConfigMap mount
+kubectl create namespace alerting
 cat <<'EOF' | kubectl apply -f -
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: email-sender
-  namespace: notifications
+  name: alert-dispatcher
+  namespace: alerting
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: email-sender
+      app: alert-dispatcher
   template:
     metadata:
       labels:
-        app: email-sender
+        app: alert-dispatcher
     spec:
       containers:
         - name: app
           image: nginx:1.25
           envFrom:
             - configMapRef:
-                name: smtp-config
+                name: pagerduty-config
           ports:
             - containerPort: 80
 EOF
@@ -144,23 +144,23 @@ EOF
 # INTERMEDIATE SCENARIOS
 # ============================================================
 
-# frontend: Service selector mismatch
-kubectl create namespace frontend
+# admin-portal: Service selector mismatch
+kubectl create namespace admin-portal
 cat <<'EOF' | kubectl apply -f -
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: web-ui
-  namespace: frontend
+  name: portal-ui
+  namespace: admin-portal
 spec:
   replicas: 2
   selector:
     matchLabels:
-      app: web-ui
+      app: portal-ui
   template:
     metadata:
       labels:
-        app: web-ui
+        app: portal-ui
     spec:
       containers:
         - name: nginx
@@ -171,11 +171,11 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: web-ui-svc
-  namespace: frontend
+  name: portal-ui-svc
+  namespace: admin-portal
 spec:
   selector:
-    app: web-ui-v2
+    app: portal-ui-v2
   ports:
     - protocol: TCP
       port: 80
@@ -183,23 +183,23 @@ spec:
   type: ClusterIP
 EOF
 
-# checkout: Wrong targetPort in Service
-kubectl create namespace checkout
+# call-routing: Wrong targetPort in Service
+kubectl create namespace call-routing
 cat <<'EOF' | kubectl apply -f -
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: cart-service
-  namespace: checkout
+  name: route-engine
+  namespace: call-routing
 spec:
   replicas: 2
   selector:
     matchLabels:
-      app: cart-service
+      app: route-engine
   template:
     metadata:
       labels:
-        app: cart-service
+        app: route-engine
     spec:
       containers:
         - name: app
@@ -210,11 +210,11 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: cart-service-svc
-  namespace: checkout
+  name: route-engine-svc
+  namespace: call-routing
 spec:
   selector:
-    app: cart-service
+    app: route-engine
   ports:
     - protocol: TCP
       port: 80
@@ -222,32 +222,32 @@ spec:
   type: ClusterIP
 EOF
 
-# proxy: Bad Helm image tag
-kubectl create namespace proxy
+# sbc-proxy: Bad Helm image tag
+kubectl create namespace sbc-proxy
 helm repo add bitnami https://charts.bitnami.com/bitnami 2>/dev/null
 helm repo update 2>/dev/null
-helm upgrade --install api-gateway bitnami/nginx \
-  --namespace proxy \
+helm upgrade --install edge-proxy bitnami/nginx \
+  --namespace sbc-proxy \
   --set image.tag=99.99.99-doesnotexist \
   --wait=false 2>/dev/null
 
-# backend-api: Liveness probe wrong port
-kubectl create namespace backend-api
+# registration: Liveness probe wrong port
+kubectl create namespace registration
 cat <<'EOF' | kubectl apply -f -
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: user-service
-  namespace: backend-api
+  name: reg-service
+  namespace: registration
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: user-service
+      app: reg-service
   template:
     metadata:
       labels:
-        app: user-service
+        app: reg-service
     spec:
       containers:
         - name: app
@@ -269,14 +269,14 @@ spec:
             periodSeconds: 5
 EOF
 
-# batch-jobs: Namespace quota exceeded
-kubectl create namespace batch-jobs
+# number-porting: Namespace quota exceeded
+kubectl create namespace number-porting
 cat <<'EOF' | kubectl apply -f -
 apiVersion: v1
 kind: ResourceQuota
 metadata:
   name: pod-limit
-  namespace: batch-jobs
+  namespace: number-porting
 spec:
   hard:
     pods: "2"
@@ -284,17 +284,17 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: report-generator
-  namespace: batch-jobs
+  name: port-processor
+  namespace: number-porting
 spec:
   replicas: 3
   selector:
     matchLabels:
-      app: report-generator
+      app: port-processor
   template:
     metadata:
       labels:
-        app: report-generator
+        app: port-processor
     spec:
       containers:
         - name: app
@@ -303,23 +303,23 @@ spec:
             - containerPort: 80
 EOF
 
-# search: Readiness probe failing (pod Running but 0/1 Ready)
-kubectl create namespace search
+# directory: Readiness probe failing (pod Running but 0/1 Ready)
+kubectl create namespace directory
 cat <<'EOF' | kubectl apply -f -
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: search-indexer
-  namespace: search
+  name: lookup-service
+  namespace: directory
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: search-indexer
+      app: lookup-service
   template:
     metadata:
       labels:
-        app: search-indexer
+        app: lookup-service
     spec:
       containers:
         - name: app
@@ -337,11 +337,11 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: search-indexer-svc
-  namespace: search
+  name: lookup-service-svc
+  namespace: directory
 spec:
   selector:
-    app: search-indexer
+    app: lookup-service
   ports:
     - protocol: TCP
       port: 80
@@ -349,23 +349,23 @@ spec:
   type: ClusterIP
 EOF
 
-# compute: Node affinity — no matching node
-kubectl create namespace compute
+# media-processing: Node affinity — no matching node
+kubectl create namespace media-processing
 cat <<'EOF' | kubectl apply -f -
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: model-trainer
-  namespace: compute
+  name: transcoder
+  namespace: media-processing
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: model-trainer
+      app: transcoder
   template:
     metadata:
       labels:
-        app: model-trainer
+        app: transcoder
     spec:
       affinity:
         nodeAffinity:
@@ -387,23 +387,23 @@ EOF
 # ADVANCED SCENARIOS
 # ============================================================
 
-# discovery: DNS broken — pod dnsPolicy set to None with no dnsConfig
-kubectl create namespace discovery
+# service-mesh: DNS broken — pod dnsPolicy set to None with no dnsConfig
+kubectl create namespace service-mesh
 cat <<'EOF' | kubectl apply -f -
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: service-registry
-  namespace: discovery
+  name: consul-agent
+  namespace: service-mesh
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: service-registry
+      app: consul-agent
   template:
     metadata:
       labels:
-        app: service-registry
+        app: consul-agent
     spec:
       dnsPolicy: "None"
       containers:
@@ -422,34 +422,34 @@ spec:
               nginx -g 'daemon off;'
 EOF
 
-# logging: StatefulSet with wrong PVC accessMode (ReadWriteMany not supported)
-kubectl create namespace logging
+# call-recording: StatefulSet with wrong PVC accessMode (ReadWriteMany not supported)
+kubectl create namespace call-recording
 cat <<'EOF' | kubectl apply -f -
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: log-collector
-  namespace: logging
+  name: recording-writer
+  namespace: call-recording
 spec:
-  serviceName: log-collector
+  serviceName: recording-writer
   replicas: 1
   selector:
     matchLabels:
-      app: log-collector
+      app: recording-writer
   template:
     metadata:
       labels:
-        app: log-collector
+        app: recording-writer
     spec:
       containers:
         - name: app
           image: nginx:1.25
           volumeMounts:
-            - name: log-data
-              mountPath: /var/log/collector
+            - name: recording-data
+              mountPath: /var/recordings
   volumeClaimTemplates:
     - metadata:
-        name: log-data
+        name: recording-data
       spec:
         accessModes: ["ReadWriteMany"]
         resources:
@@ -459,12 +459,12 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: log-collector
-  namespace: logging
+  name: recording-writer
+  namespace: call-recording
 spec:
   clusterIP: None
   selector:
-    app: log-collector
+    app: recording-writer
   ports:
     - port: 80
 EOF
