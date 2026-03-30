@@ -11,6 +11,10 @@
       {
         "title": "Troubleshoot the Cluster",
         "text": "step1/text.md"
+      },
+      {
+        "title": "Operational Tasks",
+        "text": "step2/text.md"
       }
     ],
     "finish": {
