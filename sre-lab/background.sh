@@ -17,6 +17,11 @@ kubectl wait --for=condition=Ready pods -l app=local-path-provisioner -n local-p
 # Install k9s
 curl -sL https://github.com/derailed/k9s/releases/download/v0.32.7/k9s_Linux_amd64.tar.gz | tar xz -C /usr/local/bin k9s 2>/dev/null
 
+# Install metrics-server (needed for kubectl top)
+kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml 2>/dev/null
+kubectl patch deployment metrics-server -n kube-system --type=json \
+  -p '[{"op":"add","path":"/spec/template/spec/containers/0/args/-","value":"--kubelet-insecure-tls"}]' 2>/dev/null
+
 # Deploy platform services
 kubectl create namespace provisioning
 kubectl create secret generic database-creds \
