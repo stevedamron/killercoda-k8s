@@ -54,7 +54,7 @@ spec:
             - containerPort: 80
 EOF
 
-# call-analytics: OOMKilled (4Mi limit)
+# call-analytics: OOMKilled — container tries to allocate 128Mi but limit is 32Mi
 kubectl create namespace call-analytics
 cat <<'EOF' | kubectl apply -f -
 apiVersion: apps/v1
@@ -75,13 +75,21 @@ spec:
       containers:
         - name: app
           image: nginx:1.25
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              echo "Starting metrics aggregation..."
+              # Simulate loading call data into memory
+              head -c 128M /dev/urandom > /dev/null 2>&1 &
+              dd if=/dev/zero bs=1M count=128 of=/tmp/buffer 2>/dev/null
+              nginx -g 'daemon off;'
           resources:
             requests:
               cpu: 50m
-              memory: 4Mi
+              memory: 32Mi
             limits:
               cpu: 100m
-              memory: 4Mi
+              memory: 32Mi
           ports:
             - containerPort: 80
 EOF
