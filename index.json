@@ -1,5 +1,5 @@
 {
-  "title": "SRE Interview Lab — Kubernetes Troubleshooting",
+  "title": "SRE Interview Lab",
   "description": "Diagnose and fix 6 broken Kubernetes deployments across isolated namespaces",
   "details": {
     "intro": {
@@ -15,29 +15,9 @@
     ],
     "finish": {
       "text": "finish.md"
-    },
-    "assets": {
-      "host01": [
-        { "file": "deploy-scenarios.sh", "target": "/tmp/", "chmod": "+x" },
-        { "file": "ns-storage-namespace.yaml", "target": "/tmp/scenarios/" },
-        { "file": "ns-storage-pvc.yaml", "target": "/tmp/scenarios/" },
-        { "file": "ns-storage-deployment.yaml", "target": "/tmp/scenarios/" },
-        { "file": "ns-secrets-namespace.yaml", "target": "/tmp/scenarios/" },
-        { "file": "ns-secrets-deployment.yaml", "target": "/tmp/scenarios/" },
-        { "file": "ns-resources-namespace.yaml", "target": "/tmp/scenarios/" },
-        { "file": "ns-resources-deployment.yaml", "target": "/tmp/scenarios/" },
-        { "file": "ns-networking-namespace.yaml", "target": "/tmp/scenarios/" },
-        { "file": "ns-networking-deployment.yaml", "target": "/tmp/scenarios/" },
-        { "file": "ns-networking-service.yaml", "target": "/tmp/scenarios/" },
-        { "file": "ns-probe-namespace.yaml", "target": "/tmp/scenarios/" },
-        { "file": "ns-probe-deployment.yaml", "target": "/tmp/scenarios/" },
-        { "file": "ns-helm-namespace.yaml", "target": "/tmp/scenarios/" },
-        { "file": "ns-helm-install.sh", "target": "/tmp/scenarios/", "chmod": "+x" }
-      ]
     }
   },
   "backend": {
     "imageid": "kubernetes-kubeadm-2nodes"
-  },
-  "time": "60"
+  }
 }
