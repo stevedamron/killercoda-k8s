@@ -1,26 +1,6 @@
-# Troubleshoot the Cluster
+# Operational Tasks
 
-You've inherited a communications platform cluster with multiple broken services. Diagnose and fix as many as you can. You may use any tools available to you, including AI assistants.
-
-### Beginner
-| Namespace | Service | Hint |
-|-----------|---------|------|
-| `provisioning` | Account Provisioner | The pod can't start — check its configuration dependencies |
-| `call-analytics` | Metrics Aggregator | The pod keeps crashing immediately after starting |
-| `cdr-storage` | CDR Writer | Something is preventing the pod from being scheduled |
-
-### Intermediate
-| Namespace | Service | Hint |
-|-----------|---------|------|
-| `admin-portal` | Portal UI | Pods are running but the service isn't routing traffic |
-| `call-routing` | Route Engine | Pods are running and service has endpoints, but connections are refused |
-| `number-porting` | Port Processor | Not all replicas are coming up — but no pod-level errors |
-| `media-processing` | Transcoder | Pod is stuck pending — no node can satisfy the requirements |
-
-### Advanced
-| Namespace | Service | Hint |
-|-----------|---------|------|
-| `service-mesh` | Consul Agent | Pod is running but the application inside can't resolve DNS |
+Complete these tasks to demonstrate your comfort with day-to-day Kubernetes operations. Work through as many as you can — speed matters here.
 
 ## Available tools
 
@@ -29,12 +9,32 @@ You've inherited a communications platform cluster with multiple broken services
 - `helm`
 - AI assistants (if available)
 
-## Useful starting points
+---
 
-```bash
-kubectl get pods -A
-kubectl get events -A --sort-by=.metadata.creationTimestamp
-k9s
-```
+### Context & Config
+1. List all available **kubectl contexts** on this cluster
+2. Set your default namespace to `admin-portal` so you don't need `-n` on every command
+3. Switch back to the **default** namespace when done
 
-Good luck!
+### Resource Inspection
+4. Show the **resource requests and limits** for all pods in `call-analytics`
+5. Check the **resource usage** (CPU/memory) of all pods across the cluster
+6. Which **node** is each `portal-ui` pod running on?
+7. Export the full **YAML manifest** of the `route-engine-svc` service in `call-routing`
+8. List all **ResourceQuotas** across the entire cluster
+9. What **ServiceAccounts** exist in the `provisioning` namespace?
+
+### Scaling & Rollouts
+10. Scale the `portal-ui` deployment in `admin-portal` to **5 replicas**
+11. Perform a **rolling restart** of the `route-engine` deployment in `call-routing`
+12. Check the **rollout status** of that restart
+13. Show the **rollout history** for `route-engine` in `call-routing`
+
+### Logs & Debugging
+14. Show the logs from the **previous crashed container** in `call-analytics`
+15. **Exec into** a `route-engine` pod in `call-routing` and test connectivity to its service from inside
+
+### Service & Networking
+16. List all **endpoints** for `portal-ui-svc` in `admin-portal`
+17. What **ClusterIP** is assigned to `route-engine-svc` in `call-routing`?
+18. **Expose** the `cdr-writer` deployment in `cdr-storage` as a new ClusterIP service on port 80

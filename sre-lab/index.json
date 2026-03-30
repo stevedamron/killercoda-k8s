@@ -9,11 +9,11 @@
     },
     "steps": [
       {
-        "title": "Troubleshoot the Cluster",
+        "title": "Operational Tasks",
         "text": "step1/text.md"
       },
       {
-        "title": "Operational Tasks",
+        "title": "Troubleshoot the Cluster",
         "text": "step2/text.md"
       }
     ],

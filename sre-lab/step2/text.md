@@ -1,19 +1,32 @@
-# Operational Tasks
+# Troubleshoot the Cluster
 
-Once you've worked through the break/fix scenarios (or when the interviewer moves you on), complete as many of these operational tasks as you can. These test day-to-day K8s comfort.
+You've inherited a communications platform cluster with multiple broken services. Diagnose and fix as many as you can. You may use any tools available to you, including AI assistants.
 
-### Scaling & Rollouts
-1. Scale the `portal-ui` deployment in `admin-portal` to **5 replicas**
-2. Perform a **rolling restart** of the `route-engine` deployment in `call-routing`
-3. Check the **rollout status** of that restart
+### Beginner
+| Namespace | Service | Hint |
+|-----------|---------|------|
+| `provisioning` | Account Provisioner | The pod can't start — check its configuration dependencies |
+| `call-analytics` | Metrics Aggregator | The pod keeps crashing immediately after starting |
+| `cdr-storage` | CDR Writer | Something is preventing the pod from being scheduled |
 
-### Logs & Inspection
-4. Show the logs from the **previous crashed container** in `call-analytics`
-5. Which **node** is each `portal-ui` pod running on?
-6. Export the full **YAML manifest** of the `route-engine-svc` service
+### Intermediate
+| Namespace | Service | Hint |
+|-----------|---------|------|
+| `admin-portal` | Portal UI | Pods are running but the service isn't routing traffic |
+| `call-routing` | Route Engine | Pods are running and service has endpoints, but connections are refused |
+| `number-porting` | Port Processor | Not all replicas are coming up — but no pod-level errors |
+| `media-processing` | Transcoder | Pod is stuck pending — no node can satisfy the requirements |
 
-### Service & Networking
-7. List all **endpoints** for `portal-ui-svc` in `admin-portal`
-8. **Exec into** a `route-engine` pod and `curl` the service ClusterIP from inside the pod
-9. What **ClusterIP** is assigned to `route-engine-svc`?
-10. **Expose** the `cdr-writer` deployment in `cdr-storage` as a new ClusterIP service on port 80
+### Advanced
+| Namespace | Service | Hint |
+|-----------|---------|------|
+| `service-mesh` | Consul Agent | Pod is running but the application inside can't resolve DNS |
+
+## Useful starting points
+
+```bash
+kubectl get pods -A
+kubectl get events -A --sort-by=.metadata.creationTimestamp
+```
+
+Good luck!
