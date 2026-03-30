@@ -18,11 +18,16 @@ kubectl wait --for=condition=Ready pods -l app=local-path-provisioner -n local-p
 curl -sL https://github.com/derailed/k9s/releases/download/v0.32.7/k9s_Linux_amd64.tar.gz | tar xz -C /usr/local/bin k9s 2>/dev/null
 
 # ============================================================
-# BEGINNER (warmup — quick wins to build confidence)
+# BEGINNER (warmup — all fixable with kubectl edit/patch)
 # ============================================================
 
-# provisioning: Missing secret reference
+# provisioning: Secret exists but with wrong name
+# Deployment references "db-credentials" but the secret is named "database-creds"
 kubectl create namespace provisioning
+kubectl create secret generic database-creds \
+    --from-literal=DB_HOST=postgres.internal \
+    --from-literal=DB_PASSWORD=changeme \
+    -n provisioning
 cat <<'EOF' | kubectl apply -f -
 apiVersion: apps/v1
 kind: Deployment
@@ -81,7 +86,7 @@ spec:
             - containerPort: 80
 EOF
 
-# cdr-storage: PVC with nonexistent StorageClass
+# cdr-storage: PVC exists but deployment references wrong claimName
 kubectl create namespace cdr-storage
 cat <<'EOF' | kubectl apply -f -
 apiVersion: v1
@@ -91,7 +96,7 @@ metadata:
   namespace: cdr-storage
 spec:
   accessModes: [ReadWriteOnce]
-  storageClassName: fast-ssd
+  storageClassName: local-path
   resources:
     requests:
       storage: 1Gi
@@ -120,11 +125,12 @@ spec:
       volumes:
         - name: data
           persistentVolumeClaim:
-            claimName: cdr-data
+            claimName: cdr-data-old
 EOF
 
 # ============================================================
 # INTERMEDIATE (core troubleshooting — the real differentiators)
+# All fixable with kubectl edit/patch/scale/label
 # ============================================================
 
 # admin-portal: Service selector mismatch
