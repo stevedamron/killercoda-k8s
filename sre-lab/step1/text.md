@@ -22,11 +22,19 @@ You've inherited a communications platform cluster with multiple broken services
 |-----------|---------|------|
 | `service-mesh` | Consul Agent | Pod is running but the application inside can't resolve DNS |
 
+## Available tools
+
+- `kubectl` / `k` (aliased)
+- `k9s` — terminal UI for Kubernetes
+- `helm`
+- AI assistants (if available)
+
 ## Useful starting points
 
 ```bash
 kubectl get pods -A
 kubectl get events -A --sort-by=.metadata.creationTimestamp
+k9s
 ```
 
 Good luck!

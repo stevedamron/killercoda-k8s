@@ -14,6 +14,9 @@ sleep 5
 kubectl apply -f https://raw.githubusercontent.com/rancher/local-path-provisioner/v0.0.26/deploy/local-path-storage.yaml 2>/dev/null
 kubectl wait --for=condition=Ready pods -l app=local-path-provisioner -n local-path-storage --timeout=60s 2>/dev/null
 
+# Install k9s
+curl -sL https://github.com/derailed/k9s/releases/download/v0.32.7/k9s_Linux_amd64.tar.gz | tar xz -C /usr/local/bin k9s 2>/dev/null
+
 # ============================================================
 # BEGINNER (warmup — quick wins to build confidence)
 # ============================================================
