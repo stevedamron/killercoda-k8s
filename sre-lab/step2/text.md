@@ -1,26 +1,30 @@
-# Troubleshoot the Cluster
+# Incident: Multiple Services Degraded
 
-You've inherited a communications platform cluster with multiple broken services. Diagnose and fix as many as you can. You may use any tools available to you, including AI assistants.
+You just got paged. Monitoring shows several services across the platform are unhealthy. Your job is to **triage and resolve as many as you can**.
+
+Work in whatever order makes sense to you. Start broad, then drill in.
+
+---
 
 ### Beginner
-| Namespace | Service | Hint |
-|-----------|---------|------|
-| `provisioning` | Account Provisioner | The pod can't start — check its configuration dependencies |
-| `call-analytics` | Metrics Aggregator | The pod keeps crashing immediately after starting |
-| `cdr-storage` | CDR Writer | Something is preventing the pod from being scheduled |
+| Namespace | Service | Alert |
+|-----------|---------|-------|
+| `provisioning` | Account Provisioner | Pod can't start — container config error |
+| `call-analytics` | Metrics Aggregator | Pod keeps crashing immediately after starting |
+| `cdr-storage` | CDR Writer | Pod stuck pending — can't schedule |
 
 ### Intermediate
-| Namespace | Service | Hint |
-|-----------|---------|------|
-| `admin-portal` | Portal UI | Pods are running but the service isn't routing traffic |
-| `call-routing` | Route Engine | Pods are running and service has endpoints, but connections are refused |
-| `number-porting` | Port Processor | Not all replicas are coming up — but no pod-level errors |
-| `media-processing` | Transcoder | Pod is stuck pending — no node can satisfy the requirements |
+| Namespace | Service | Alert |
+|-----------|---------|-------|
+| `admin-portal` | Portal UI | Pods running but service is unreachable |
+| `call-routing` | Route Engine | Pods running, service has endpoints, but connections refused |
+| `number-porting` | Port Processor | Not all replicas coming up — no pod-level errors |
+| `media-processing` | Transcoder | Pod stuck pending — scheduling failure |
 
 ### Advanced
-| Namespace | Service | Hint |
-|-----------|---------|------|
-| `service-mesh` | Consul Agent | Pod is running but the application inside can't resolve DNS |
+| Namespace | Service | Alert |
+|-----------|---------|-------|
+| `service-mesh` | Consul Agent | Pod running but application can't resolve upstream services |
 
 ## Useful starting points
 
@@ -28,5 +32,3 @@ You've inherited a communications platform cluster with multiple broken services
 kubectl get pods -A
 kubectl get events -A --sort-by=.metadata.creationTimestamp
 ```
-
-Good luck!

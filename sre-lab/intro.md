@@ -1,16 +1,11 @@
-# SRE Technical Assessment — Kubernetes Troubleshooting
+# Welcome to the Platform Team
 
-Welcome to the SRE interview lab.
+You've just joined the SRE team at a communications company. This is your first week, and your manager has given you access to one of the production Kubernetes clusters that runs core telephony and platform services.
 
-You have access to a 2-node Kubernetes cluster. There are **6 namespaces**, each containing a deployment that is not working correctly.
+Your first task is to **get familiar with the cluster** — understand what's running, how it's configured, and get comfortable navigating the environment.
 
-Your goal is to **diagnose and fix as many as you can in 20 minutes**.
+After that, you'll get paged: **multiple services are reporting issues across the platform**. You'll need to triage and resolve as many as you can.
 
-## Guidelines
-
-- **Think out loud** — we're interested in your troubleshooting process, not just the fix
-- Use whatever tools you're comfortable with (`kubectl`, `helm`, etc.)
-- There is no trick — each issue is a realistic operational problem with a straightforward fix
-- You can work in any order
+You can use any tools available to you, including AI assistants. Think out loud — we're interested in how you work, not just the outcome.
 
 The environment is being prepared in the background. Click **Start** when ready.
