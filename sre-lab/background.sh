@@ -17,12 +17,7 @@ kubectl wait --for=condition=Ready pods -l app=local-path-provisioner -n local-p
 # Install k9s
 curl -sL https://github.com/derailed/k9s/releases/download/v0.32.7/k9s_Linux_amd64.tar.gz | tar xz -C /usr/local/bin k9s 2>/dev/null
 
-# ============================================================
-# BEGINNER (warmup — all fixable with kubectl edit/patch)
-# ============================================================
-
-# provisioning: Secret exists but with wrong name
-# Deployment references "db-credentials" but the secret is named "database-creds"
+# Deploy platform services
 kubectl create namespace provisioning
 kubectl create secret generic database-creds \
     --from-literal=DB_HOST=postgres.internal \
@@ -54,7 +49,6 @@ spec:
             - containerPort: 80
 EOF
 
-# call-analytics: OOMKilled — someone set 1Mi instead of 1Gi (typo)
 kubectl create namespace call-analytics
 cat <<'EOF' | kubectl apply -f -
 apiVersion: apps/v1
@@ -86,7 +80,6 @@ spec:
             - containerPort: 80
 EOF
 
-# cdr-storage: PVC exists but deployment references wrong claimName
 kubectl create namespace cdr-storage
 cat <<'EOF' | kubectl apply -f -
 apiVersion: v1
@@ -128,12 +121,6 @@ spec:
             claimName: cdr-data-old
 EOF
 
-# ============================================================
-# INTERMEDIATE (core troubleshooting — the real differentiators)
-# All fixable with kubectl edit/patch/scale/label
-# ============================================================
-
-# admin-portal: Service selector mismatch
 kubectl create namespace admin-portal
 cat <<'EOF' | kubectl apply -f -
 apiVersion: apps/v1
@@ -172,7 +159,6 @@ spec:
   type: ClusterIP
 EOF
 
-# call-routing: Wrong targetPort in Service
 kubectl create namespace call-routing
 cat <<'EOF' | kubectl apply -f -
 apiVersion: apps/v1
@@ -211,7 +197,6 @@ spec:
   type: ClusterIP
 EOF
 
-# number-porting: Namespace quota exceeded
 kubectl create namespace number-porting
 cat <<'EOF' | kubectl apply -f -
 apiVersion: v1
@@ -245,7 +230,6 @@ spec:
             - containerPort: 80
 EOF
 
-# media-processing: Node affinity — no matching node
 kubectl create namespace media-processing
 cat <<'EOF' | kubectl apply -f -
 apiVersion: apps/v1
@@ -279,11 +263,6 @@ spec:
             - containerPort: 80
 EOF
 
-# ============================================================
-# ADVANCED (deeper debugging — separates senior from mid)
-# ============================================================
-
-# service-mesh: DNS broken — pod dnsPolicy set to None with no dnsConfig
 kubectl create namespace service-mesh
 cat <<'EOF' | kubectl apply -f -
 apiVersion: apps/v1
@@ -304,18 +283,20 @@ spec:
       dnsPolicy: "None"
       containers:
         - name: app
-          image: nginx:1.25
+          image: busybox:1.36
           ports:
             - containerPort: 80
           command: ["/bin/sh", "-c"]
           args:
             - |
+              echo "Starting consul-agent..."
               echo "Resolving upstream dependencies..."
               while ! nslookup kubernetes.default.svc.cluster.local; do
-                echo "DNS lookup failed, retrying..."
+                echo "DNS lookup failed, retrying in 5s..."
                 sleep 5
               done
-              nginx -g 'daemon off;'
+              echo "Dependencies resolved, starting service..."
+              httpd -f -p 80
 EOF
 
 sleep 5

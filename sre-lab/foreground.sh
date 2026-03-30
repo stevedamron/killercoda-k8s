@@ -9,7 +9,7 @@ while [ ! -f /tmp/.setup-complete ]; do
     sleep 2
 done
 
-echo "Environment ready! You have 6 namespaces to troubleshoot."
+echo "Environment ready! 8 namespaces have been deployed across the cluster."
 echo ""
 echo "Start with:  kubectl get pods -A"
 echo ""

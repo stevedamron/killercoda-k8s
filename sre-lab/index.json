@@ -1,6 +1,6 @@
 {
   "title": "SRE Interview Lab",
-  "description": "Diagnose and fix 6 broken Kubernetes deployments across isolated namespaces",
+  "description": "SRE technical assessment — operational tasks and 8 break/fix scenarios",
   "details": {
     "intro": {
       "text": "intro.md",
@@ -9,11 +9,11 @@
     },
     "steps": [
       {
-        "title": "Operational Tasks",
+        "title": "Day 1: Cluster Familiarization",
         "text": "step1/text.md"
       },
       {
-        "title": "Troubleshoot the Cluster",
+        "title": "Incident: Multiple Services Degraded",
         "text": "step2/text.md"
       }
     ],

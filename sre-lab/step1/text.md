@@ -31,10 +31,10 @@ Your manager says: *"Before you go on-call, spend some time getting familiar wit
 13. Show the **rollout history** for `route-engine` in `call-routing`
 
 ### Check logs and connectivity
-14. Show the logs from the **previous crashed container** in `call-analytics`
+14. Show the **recent logs** from the `route-engine` pods in `call-routing`
 15. **Exec into** a `route-engine` pod in `call-routing` and test connectivity to its service from inside
 
 ### Review service networking
-16. List all **endpoints** for `portal-ui-svc` in `admin-portal`
+16. List all **endpoints** for `route-engine-svc` in `call-routing`
 17. What **ClusterIP** is assigned to `route-engine-svc` in `call-routing`?
 18. **Expose** the `cdr-writer` deployment in `cdr-storage` as a new ClusterIP service on port 80
