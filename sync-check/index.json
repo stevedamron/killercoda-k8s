@@ -1,0 +1,23 @@
+{
+  "title": "Sync Check",
+  "description": "Minimal healthy cluster — used to verify killercoda is syncing scenarios from the connected GitHub repo.",
+  "details": {
+    "intro": {
+      "text": "intro.md",
+      "background": "background.sh",
+      "foreground": "foreground.sh"
+    },
+    "steps": [
+      {
+        "title": "Verify the cluster is healthy",
+        "text": "step1/text.md"
+      }
+    ],
+    "finish": {
+      "text": "finish.md"
+    }
+  },
+  "backend": {
+    "imageid": "kubernetes-kubeadm-2nodes"
+  }
+}
