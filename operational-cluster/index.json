@@ -1,6 +1,6 @@
 {
-  "title": "Sync Check",
-  "description": "Minimal healthy cluster — used to verify killercoda is syncing scenarios from the connected GitHub repo.",
+  "title": "Operational Cluster",
+  "description": "Known-good reference cluster — identical structure to the SRE Interview Lab, but every service is healthy. Use this as a consistent baseline environment for practice and command verification.",
   "details": {
     "intro": {
       "text": "intro.md",
@@ -9,7 +9,7 @@
     },
     "steps": [
       {
-        "title": "Verify the cluster is healthy",
+        "title": "Explore a healthy production cluster",
         "text": "step1/text.md"
       }
     ],
