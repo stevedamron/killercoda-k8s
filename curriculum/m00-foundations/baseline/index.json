@@ -1,0 +1,20 @@
+{
+  "title": "M00 — Mental Model & kubectl Fluency — Baseline",
+  "description": "Tour the Polyphone cluster. Learn its anatomy, walk the fleet, and practice the diagnostic loop against a known-good environment.",
+  "details": {
+    "intro": {
+      "text": "intro.md",
+      "background": "background.sh",
+      "foreground": "foreground.sh"
+    },
+    "steps": [
+      { "title": "Cluster anatomy", "text": "step1/text.md" },
+      { "title": "The Polyphone fleet", "text": "step2/text.md" },
+      { "title": "The diagnostic loop", "text": "step3/text.md" }
+    ],
+    "finish": { "text": "finish.md" }
+  },
+  "backend": {
+    "imageid": "kubernetes-kubeadm-2nodes"
+  }
+}
