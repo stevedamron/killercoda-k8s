@@ -54,6 +54,6 @@ The script is idempotent: rerunning it should not break a running cluster. Names
 
 Changes to the baseline ripple through every module. Don't add workloads here without updating:
 
-1. `curriculum/CURRICULUM.md` — the fleet table
-2. `curriculum/_internal/vernacular.md` — the workload archetypes table
+1. `CURRICULUM.md` — the fleet table
+2. `_internal/vernacular.md` — the workload archetypes table
 3. Every module's scenario `background.sh` copies (or the build pipeline that generates them)
