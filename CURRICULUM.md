@@ -118,7 +118,7 @@ See `_internal/style-guide.md` for the full conventions.
 
 | Module                 | LESSON | ANSWER-KEY | baseline/ | breakfix/ | Notes |
 |------------------------|--------|------------|-----------|-----------|-------|
-| M00 Foundations        | ✅     | ✅         | ✅        | 1 shipped (`context-blindness`) | Canonical template — match its shape going forward |
+| M00 Foundations        | ✅     | ✅         | ✅        | 3 shipped (`context-blindness`, `event-only-failure`, `namespace-blindness`) | Canonical template — match its shape going forward |
 | M01 Workloads I        | —      | —          | —         | —         | Next up |
 | M02 Images & Registries| —      | —          | —         | —         | |
 | M03 Configuration      | —      | —          | —         | —         | |

@@ -1,0 +1,19 @@
+{
+  "title": "M00 — Break/fix 02: Event-Only Failure",
+  "description": "A Deployment in the Polyphone fleet is short a replica. The pods that exist are fine. The answer isn't on any Pod — practice climbing the owner chain.",
+  "details": {
+    "intro": {
+      "text": "intro.md",
+      "background": "background.sh",
+      "foreground": "foreground.sh"
+    },
+    "steps": [
+      { "title": "Find the missing replica", "text": "step1/text.md" },
+      { "title": "Fix it and verify", "text": "step2/text.md" }
+    ],
+    "finish": { "text": "finish.md" }
+  },
+  "backend": {
+    "imageid": "kubernetes-kubeadm-2nodes"
+  }
+}

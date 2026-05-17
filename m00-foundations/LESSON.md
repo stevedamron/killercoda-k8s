@@ -96,6 +96,42 @@ status:
 
 `spec` is yours — you write it. `status` belongs to the controllers; they update it as the cluster converges. When something is wrong, the gap between `spec` and `status` is where the story lives. Every diagnostic command exists to expose part of that gap.
 
+<details>
+<summary>📖 Going deeper: namespace boundaries — what crosses, what doesn't<sup><a href="https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/">[7]</a></sup></summary>
+
+Namespaces are organizational scoping + RBAC scope + a DNS prefix. They are **not** a security boundary.
+
+What crosses namespaces:
+- **Services** — resolvable cluster-wide via `<svc>.<ns>.svc.cluster.local`. A pod in `admin-portal` can call `portal-ui.admin-portal` directly.
+- **PersistentVolumes** — cluster-scoped; can be bound by a PVC in any namespace (subject to StorageClass policy).
+- **Nodes, ClusterRoles, IngressClasses, StorageClasses** — cluster-scoped, visible from everywhere.
+
+What doesn't:
+- **Secrets, ConfigMaps, ServiceAccounts** — namespaced; a Pod can only mount one from its own namespace.
+- **NetworkPolicies** — selectors are namespace-scoped unless you explicitly use a `namespaceSelector` (M14).
+- **RBAC** — `Role` + `RoleBinding` is namespaced; `ClusterRole` + `ClusterRoleBinding` is cluster-wide. Mixing them is the most common RBAC bug.
+
+This matters operationally: if your workload in namespace `A` "can't see" something in namespace `B`, the answer is almost always one of (a) it's namespaced and you're looking from the wrong place, (b) the FQDN you need is `<thing>.B.svc.cluster.local`, or (c) a NetworkPolicy is blocking the cross-namespace call.
+
+</details>
+
+<details>
+<summary>📖 Going deeper: owner references and cascading deletion<sup><a href="https://kubernetes.io/docs/concepts/architecture/garbage-collection/">[8]</a></sup></summary>
+
+Objects can own other objects. A Deployment owns ReplicaSets; ReplicaSets own Pods. When you delete the owner, what happens to the dependents depends on the deletion propagation policy:
+
+- **Background** (default): API server returns immediately; the garbage collector deletes dependents asynchronously.
+- **Foreground**: API server returns only after dependents are fully gone. The owner gets a `metadata.deletionTimestamp` and a `foregroundDeletion` finalizer; the GC removes the finalizer once dependents are gone.
+- **Orphan**: dependents stay; they just lose their `ownerReference`.
+
+Two surprises this causes:
+
+1. **`kubectl delete pod <pod>` on a Deployment-owned pod doesn't kill the workload.** The ReplicaSet immediately recreates the pod. To actually remove the workload, delete the Deployment (which cascades down).
+
+2. **`kubectl delete` seems to hang.** Look at `kubectl get <kind> <name> -o yaml` and check `metadata.finalizers`. Some controller is supposed to clean up before deletion can complete and hasn't. Common culprits: CSI driver finalizers on PVCs, cert-manager finalizers on Certificates, custom-resource finalizers from operators that have been uninstalled.
+
+</details>
+
 ### `kubectl` is a thin client
 
 When you run `kubectl get pods -n admin-portal`, kubectl:
@@ -239,3 +275,5 @@ After attempting `breakfix-01`, check yourself against `ANSWER-KEY.md` — it wa
 4. Controllers — https://kubernetes.io/docs/concepts/architecture/controller/
 5. Controlling Access to the Kubernetes API — https://kubernetes.io/docs/concepts/security/controlling-access/
 6. Server-Side Apply — https://kubernetes.io/docs/reference/using-api/server-side-apply/
+7. Namespaces — https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/
+8. Garbage Collection — https://kubernetes.io/docs/concepts/architecture/garbage-collection/

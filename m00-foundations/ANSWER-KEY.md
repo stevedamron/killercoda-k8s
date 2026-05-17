@@ -104,9 +104,147 @@ The list of selectable fields per resource is limited (Kubernetes doesn't index 
 3. Let Flux re-apply the corrected manifest, eliminating the out-of-band fix.
 4. Post-mortem: how did the bad image tag merge in the first place? Should CI block deployments referencing non-existent images?
 
-`kubectl` changes are temporary unless the source of truth agrees. You'll meet Flux and the GitOps loop in M11–M14. For now, take away the principle.
+`kubectl` changes are temporary unless the source of truth agrees. You'll meet Flux and the GitOps loop in M18. For now, take away the principle.
+
+---
+
+## Break/fix 02 — Event-Only Failure
+
+**Symptom:** Alert fires that `port-processor` Deployment in `number-porting` is short a replica (`desired=3, available=2`). The pods that exist are `Running`, `1/1 READY`. `kubectl describe pod` shows nothing wrong.
+
+**Root cause:** The namespace's `ResourceQuota` caps total pods at 2, but the Deployment wants 3. The Pod that can't be created produces a `FailedCreate` event on the **ReplicaSet** (not on any Pod, because there's no Pod to attach the event to)<sup><a href="https://kubernetes.io/docs/concepts/workloads/controllers/replicaset/">[3]</a></sup>.
+
+**Diagnostic commands (the canonical path):**
+
+```bash
+# 1. Confirm the gap
+kubectl get deploy port-processor -n number-porting
+# READY 2/3 — the Deployment is unsatisfied
+
+# 2. Pods themselves are fine
+kubectl get pods -n number-porting
+kubectl describe pod -n number-porting -l app=port-processor
+# Nothing wrong with the 2 pods that exist
+
+# 3. Climb the owner chain
+kubectl describe rs -n number-porting -l app=port-processor
+# Events: FailedCreate ... pods "..." is forbidden: exceeded quota
+```
+
+```bash
+# Shortcut: events surface this in seconds
+kubectl get events -n number-porting --sort-by='.lastTimestamp'
+# Same FailedCreate event, no chain-climbing required
+```
+
+```bash
+# Confirm the quota
+kubectl get resourcequota -n number-porting
+# USED 2/2  HARD 2
+```
+
+**Fix (two valid options):**
+
+```bash
+# Option A: raise the quota (use when 3 replicas was the intended count)
+kubectl patch resourcequota pod-limit -n number-porting --type=merge \
+  -p '{"spec":{"hard":{"pods":"5"}}}'
+
+# Option B: reduce replicas (use when 2 was the intended count)
+kubectl scale deployment port-processor --replicas=2 -n number-porting
+```
+
+**Verify:**
+
+```bash
+kubectl get deploy port-processor -n number-porting
+# READY 3/3 (option A) or 2/2 (option B)
+kubectl get events -n number-porting --sort-by='.lastTimestamp' | tail -5
+# Should now show SuccessfulCreate, not FailedCreate
+```
+
+**What this scenario tests:**
+
+- Did you reach for `kubectl get events` or `kubectl describe rs` when pod-level checks came up empty? That's the climb-the-owner-chain instinct.
+- Did you recognize that `kubectl describe pod` can only show events on Pods? When the failure is "the Pod never got created in the first place," the event lives on whoever tried to create it (the ReplicaSet).
+- Did you stop to ask "should I raise the quota or reduce replicas?" instead of mechanically running one fix? Quotas exist for a reason; the production answer depends on whether the quota was wrong or the replica count was wrong.
+
+**Expected time:** 2–4 min once the climb-the-owner-chain instinct is internalized; 5–10 min the first time through.
+
+**Production thinking:** `ResourceQuota` is a guardrail. Raising it to bypass a failure trains the wrong instinct — eventually quotas don't constrain anything. The real fix lives in `platform-gitops`: either justify the higher quota via PR (capacity review, cost) or revert the replica change that triggered the breach. `kubectl patch` is triage; Flux will overwrite it on next reconciliation unless the source of truth agrees.
+
+---
+
+## Break/fix 03 — Namespace Blindness
+
+**Symptom:** Alert fires that Polyphone workloads are degraded. You run `kubectl get pods` and get back:
+
+```text
+No resources found in kube-public namespace.
+```
+
+The cluster appears empty. But the alert says workloads are unhealthy. Something doesn't add up.
+
+**Root cause:** The kubeconfig's default namespace is set to `kube-public` (which legitimately has no Polyphone workloads). The cluster is fully healthy; the operator's *view* of it is misconfigured<sup><a href="https://kubernetes.io/docs/tasks/access-application-cluster/configure-access-multiple-clusters/">[4]</a></sup>.
+
+**Diagnostic commands (the canonical path):**
+
+```bash
+# 1. FIRST move: confirm the cluster isn't actually broken
+kubectl get pods -A
+# The cluster is fully populated. So the issue is with your view.
+
+# 2. Re-read the original error message carefully
+#    "No resources found in kube-public namespace."
+#    kubectl is telling you exactly where it looked
+
+# 3. Confirm what your kubeconfig says
+kubectl config current-context
+kubectl config view --minify
+# Shows context's namespace: kube-public
+kubectl config get-contexts
+# The * row's NAMESPACE column also shows kube-public
+```
+
+**Fix:**
+
+```bash
+# Option A: reset to default
+kubectl config set-context --current --namespace=default
+
+# Option B: scope to a namespace you actually want
+kubectl config set-context --current --namespace=admin-portal
+```
+
+**Verify:**
+
+```bash
+kubectl config view --minify | grep namespace:
+# namespace: default  (or whichever you set)
+kubectl get pods
+# Returns pods (or "No resources found in default namespace" — that's expected for default,
+# but the namespace shown is now what you set)
+```
+
+**What this scenario tests:**
+
+- Did you reach for `kubectl get pods -A` BEFORE assuming the cluster was broken? That single command separates "view is wrong" from "cluster is wrong" in 2 seconds.
+- Did you read the error message carefully? `"No resources found in kube-public namespace"` literally told you the scope.
+- Do you know `kubectl config current-context` (which cluster/user/namespace combo is active) and `kubectl config view --minify` (the full settings)?
+
+The anti-pattern: assume the cluster is broken, start poking at individual workloads, waste 15 minutes before noticing the prompt says you're in the wrong place.
+
+**Expected time:** 30 seconds–2 min once the "suspect your view first" instinct is built; 5–15 min the first time (could be much longer if you skip `-A`).
+
+**Production thinking:** Three operational practices that make this class of incident impossible:
+
+1. **Shell prompt customization** — show `<context>:<namespace>` in your prompt at all times (e.g., [kube-ps1](https://github.com/jonmosco/kube-ps1)). If you can see "prod-us-east-1:kube-public" in your prompt, you'll never get surprised.
+2. **Separate terminals per environment** — don't share a terminal between prod and lab. Different windows, different colors, different tmux sessions. Make context-switching require deliberate action.
+3. **Read-only contexts for prod by default** — kubeconfig maps prod to a read-only user; switching to write-capable is a deliberate, separate action. Cuts wrong-cluster mutations to near-zero.
 
 ## References
 
 1. Kubernetes — Image Pull Backoff: https://kubernetes.io/docs/concepts/containers/images/#imagepullbackoff
 2. Kubernetes — Field Selectors: https://kubernetes.io/docs/concepts/overview/working-with-objects/field-selectors/
+3. Kubernetes — ReplicaSet: https://kubernetes.io/docs/concepts/workloads/controllers/replicaset/
+4. Kubernetes — Configure Access to Multiple Clusters: https://kubernetes.io/docs/tasks/access-application-cluster/configure-access-multiple-clusters/
