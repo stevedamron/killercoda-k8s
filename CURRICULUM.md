@@ -38,56 +38,63 @@ The full fleet boots in every lesson's `baseline/` scenario. Each module's break
 |-----|-------------------------------------------|-----------------------------------------------------------------|
 | M00 | Mental Model & kubectl Fluency            | Cluster anatomy, contexts, namespaces, the resource model       |
 | M01 | Workloads I — Pods, Deployments, ReplicaSets | Lifecycle, probes, controllers, declarative reconciliation     |
-| M02 | Configuration                             | ConfigMaps, Secrets, env injection, projected volumes           |
-| M03 | Networking I — Services & DNS             | Service types, Endpoints, kube-proxy, CoreDNS                   |
-| M04 | Storage                                   | PV/PVC, StorageClass, CSI, RWO vs RWX, dynamic provisioning     |
-| M05 | Scheduling                                | Requests/limits, QoS, affinity, taints, topology spread         |
-| M06 | Workloads II — StatefulSets, DaemonSets, Jobs | Stable identity, ordered rollout, node-local agents, batch    |
+| M02 | Container Images & Registries             | Image anatomy, references vs digests, pull semantics, imagePullSecrets, registry auth, mirrors, promotion, scanning, signing |
+| M03 | Configuration                             | ConfigMaps, Secrets (basic), env injection, projected volumes   |
+| M04 | Networking I — Services & DNS             | Service types, Endpoints, kube-proxy, CoreDNS                   |
+| M05 | Storage                                   | PV/PVC, StorageClass, CSI, RWO vs RWX, dynamic provisioning     |
+| M06 | Scheduling                                | Requests/limits, QoS, affinity, taints, topology spread         |
+| M07 | Workloads II — StatefulSets, DaemonSets, Jobs | Stable identity, ordered rollout, node-local agents, batch    |
+| M08 | CRDs & Operators                          | The controller pattern, CRDs vs built-ins, owner references, reading operator-managed state, debugging stuck reconciliation |
 
 ### Tier 2 — Operational Depth (linear)
 
 | ID  | Title                                     | Core concepts                                                   |
 |-----|-------------------------------------------|-----------------------------------------------------------------|
-| M07 | Resilience                                | PDBs, HPA, rolling updates, rollbacks, graceful shutdown        |
-| M08 | Security                                  | RBAC, SAs, SecurityContext, PodSecurity, secrets-at-rest        |
-| M09 | Observability                             | Events, logs, metrics-server, `top`, sidecar logging patterns   |
-| M10 | Networking II — Policy & Ingress          | NetworkPolicies, Ingress controllers, service mesh primer       |
+| M09 | Resilience & Autoscaling                  | PDBs, HPA + Cluster Autoscaler + VPA + KEDA, rolling updates, rollbacks, graceful shutdown |
+| M10 | Security I — RBAC & Pod Security          | RBAC, ServiceAccounts, SecurityContext, PodSecurity admission   |
+| M11 | Security II — Secrets at Scale            | External Secrets Operator, Vault, sealed-secrets, sops; GitOps-safe secret handling |
+| M12 | PKI & TLS                                 | cert-manager, internal CA, mTLS between workloads, ACME for public certs |
+| M13 | Observability                             | Events, logs (sidecar + centralized stack), metrics (Prometheus operator), traces (OpenTelemetry) |
+| M14 | Networking II — Policy & Ingress          | NetworkPolicies, Ingress controllers, multi-tenant patterns     |
+| M15 | Service Mesh                              | Sidecar injection, traffic management (retries/timeouts/circuit breakers), debugging envoy config, mesh-managed mTLS |
 
 ### Tier 3 — Platform Engineering (branchable)
 
 **Track A — GitOps**
 | ID  | Title                  | Core concepts                                            |
 |-----|------------------------|----------------------------------------------------------|
-| M11 | Kustomize Bases & Overlays | Composition, patches, components, generators        |
-| M12 | Helm Fundamentals      | Charts, values, templating, when to choose Helm vs Kustomize |
-| M13 | Flux                   | GitRepository, Kustomization, HelmRelease, dependencies, drift |
-| M14 | Multi-cluster Fleet    | Cluster vars, promotion (lab → stage → prod), per-region overlays |
+| M16 | Kustomize Bases & Overlays | Composition, patches, components, generators        |
+| M17 | Helm Fundamentals      | Charts, values, templating, when to choose Helm vs Kustomize |
+| M18 | Flux                   | GitRepository, Kustomization, HelmRelease, dependencies, drift |
+| M19 | Multi-cluster Fleet    | Cluster vars, rendering trace, promotion (lab → stage → prod), per-region overlays |
 
 **Track B — Policy & Compliance**
 | ID  | Title                  | Core concepts                                            |
 |-----|------------------------|----------------------------------------------------------|
-| M15 | Kyverno / OPA Gatekeeper | Policy-as-code, validation, mutation, generation     |
-| M16 | Admission Control      | Validating vs mutating webhooks, admission ordering     |
+| M20 | Kyverno / OPA Gatekeeper | Policy-as-code, validation, mutation, signed-image admission |
+| M21 | Admission Control      | Validating vs mutating webhooks, admission ordering     |
 
 **Track C — Real-Time / Latency-Sensitive Workloads**
 | ID  | Title                  | Core concepts                                            |
 |-----|------------------------|----------------------------------------------------------|
-| M17 | Host Networking & Multi-NIC | hostNetwork, hostPort, Multus, CNI plumbing for RTP |
-| M18 | CPU & Memory Tuning    | CPU Manager, NUMA, topology manager, hugepages, RT kernel basics |
-| M19 | Stateful Coordination  | Leader election, headless Services, StatefulSet identity, persistent caches |
+| M22 | Host Networking & Multi-NIC | hostNetwork, hostPort, Multus, CNI plumbing for RTP, UDP load balancing, ExternalTrafficPolicy |
+| M23 | CPU & Memory Tuning    | CPU Manager, NUMA, topology manager, hugepages, RT kernel basics |
+| M24 | Stateful Coordination  | Leader election, headless Services, StatefulSet identity, persistent caches |
 
 ### Tier 4 — Capstone
 
 | ID  | Title                                     | Core concepts                                                   |
 |-----|-------------------------------------------|-----------------------------------------------------------------|
-| M20 | Failure & Recovery                        | Control plane, etcd basics, CSI failure, GitOps rollback        |
-| M21 | Operate the Platform                      | Multi-broken-cluster triage; integrates Tier 1–3                |
+| M25 | Failure & Recovery                        | Cluster upgrades + version skew, control plane, etcd, CSI failure, Velero/backup, GitOps rollback |
+| M26 | Operate the Platform                      | Multi-broken-cluster triage; integrates Tier 1–3                |
 
 ## Lesson design philosophy
 
 **Concept first, then practice, then self-grade.** The companion `LESSON.md` introduces the concept and mental model. The Killercoda `baseline/` scenario lets you see it working. The `breakfix-NN/` scenarios force you to debug it. The `ANSWER-KEY.md` shows the canonical diagnostic path so you can grade your own approach after — it's a learner-facing reference, not a hidden instructor key.
 
 **One concept per break/fix scenario.** A scenario tests one diagnostic skill. Combining multiple bugs into one scenario teaches frustration, not Kubernetes.
+
+**Depth scales with break/fix scenarios, not with LESSON.md length.** Each module identifies 2–3 load-bearing concepts (the ones an SRE needs cold at 3am) and gives each of them full prose + an optional `<details>` deep dive + at least one break/fix scenario. Secondary concepts get covered in Vocabulary and the walkthrough but don't get dedicated depth treatment. A module with 3 load-bearing concepts ships ~3 break/fix scenarios; a module with 2 ships ~2. Don't pad scenarios for symmetry; don't omit them to keep things short. See `_internal/lesson-template.md` for the load-bearing-concepts pre-authoring step.
 
 **The platform is always the same.** Every lesson uses the same Polyphone fleet. Learners build familiarity with the same namespaces, the same workloads, the same vocabulary. By M10 they know the platform as well as they know their own production system.
 
@@ -113,25 +120,30 @@ See `_internal/style-guide.md` for the full conventions.
 |------------------------|--------|------------|-----------|-----------|-------|
 | M00 Foundations        | ✅     | ✅         | ✅        | 1 shipped (`context-blindness`) | Canonical template — match its shape going forward |
 | M01 Workloads I        | —      | —          | —         | —         | Next up |
-| M02 Configuration      | —      | —          | —         | —         | |
-| M03 Networking I       | —      | —          | —         | —         | |
-| M04 Storage            | —      | —          | —         | —         | |
-| M05 Scheduling         | —      | —          | —         | —         | |
-| M06 Workloads II       | —      | —          | —         | —         | |
-| M07 Resilience         | —      | —          | —         | —         | |
-| M08 Security           | —      | —          | —         | —         | |
-| M09 Observability      | —      | —          | —         | —         | |
-| M10 Networking II      | —      | —          | —         | —         | |
-| M11 Kustomize          | —      | —          | —         | —         | GitOps track |
-| M12 Helm               | —      | —          | —         | —         | GitOps track |
-| M13 Flux               | —      | —          | —         | —         | GitOps track |
-| M14 Multi-cluster      | —      | —          | —         | —         | GitOps track |
-| M15 Kyverno/OPA        | —      | —          | —         | —         | Policy track |
-| M16 Admission control  | —      | —          | —         | —         | Policy track |
-| M17 Host networking    | —      | —          | —         | —         | Real-time track |
-| M18 CPU/NUMA           | —      | —          | —         | —         | Real-time track |
-| M19 Stateful coord.    | —      | —          | —         | —         | Real-time track |
-| M20 Failure & recovery | —      | —          | —         | —         | Capstone |
-| M21 Operate platform   | —      | —          | —         | —         | Capstone |
+| M02 Images & Registries| —      | —          | —         | —         | |
+| M03 Configuration      | —      | —          | —         | —         | |
+| M04 Networking I       | —      | —          | —         | —         | |
+| M05 Storage            | —      | —          | —         | —         | |
+| M06 Scheduling         | —      | —          | —         | —         | |
+| M07 Workloads II       | —      | —          | —         | —         | |
+| M08 CRDs & Operators   | —      | —          | —         | —         | |
+| M09 Resilience & Autoscaling | —| —          | —         | —         | |
+| M10 Security I (RBAC)  | —      | —          | —         | —         | |
+| M11 Security II (Secrets at Scale) | — | — | —     | —         | |
+| M12 PKI & TLS          | —      | —          | —         | —         | |
+| M13 Observability      | —      | —          | —         | —         | |
+| M14 Networking II      | —      | —          | —         | —         | |
+| M15 Service Mesh       | —      | —          | —         | —         | |
+| M16 Kustomize          | —      | —          | —         | —         | GitOps track |
+| M17 Helm               | —      | —          | —         | —         | GitOps track |
+| M18 Flux               | —      | —          | —         | —         | GitOps track |
+| M19 Multi-cluster      | —      | —          | —         | —         | GitOps track |
+| M20 Kyverno/OPA        | —      | —          | —         | —         | Policy track |
+| M21 Admission control  | —      | —          | —         | —         | Policy track |
+| M22 Host networking    | —      | —          | —         | —         | Real-time track |
+| M23 CPU/NUMA           | —      | —          | —         | —         | Real-time track |
+| M24 Stateful coord.    | —      | —          | —         | —         | Real-time track |
+| M25 Failure & recovery | —      | —          | —         | —         | Capstone |
+| M26 Operate platform   | —      | —          | —         | —         | Capstone |
 
 Update the `breakfix/` column with `N shipped (slug1, slug2, ...)` each time a scenario lands. Each module ships ≥1 break/fix scenario; additional scenarios get added as authoring proceeds and as failure modes worth teaching emerge.
