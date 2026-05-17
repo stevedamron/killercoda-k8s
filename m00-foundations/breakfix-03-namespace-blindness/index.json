@@ -9,7 +9,7 @@
     },
     "steps": [
       { "title": "Diagnose your view", "text": "step1/text.md" },
-      { "title": "Fix your context and verify", "text": "step2/text.md" }
+      { "title": "Fix your context and verify", "text": "step2/text.md", "verify": "step2/verify.sh" }
     ],
     "finish": { "text": "finish.md" }
   },

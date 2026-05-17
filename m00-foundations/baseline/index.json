@@ -8,9 +8,9 @@
       "foreground": "foreground.sh"
     },
     "steps": [
-      { "title": "Cluster anatomy", "text": "step1/text.md" },
-      { "title": "The Polyphone fleet", "text": "step2/text.md" },
-      { "title": "The diagnostic loop", "text": "step3/text.md" }
+      { "title": "Cluster anatomy", "text": "step1/text.md", "verify": "step1/verify.sh" },
+      { "title": "The Polyphone fleet", "text": "step2/text.md", "verify": "step2/verify.sh" },
+      { "title": "The diagnostic loop", "text": "step3/text.md", "verify": "step3/verify.sh" }
     ],
     "finish": { "text": "finish.md" }
   },

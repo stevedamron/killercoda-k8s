@@ -9,7 +9,7 @@
     },
     "steps": [
       { "title": "Find the missing replica", "text": "step1/text.md" },
-      { "title": "Fix it and verify", "text": "step2/text.md" }
+      { "title": "Fix it and verify", "text": "step2/text.md", "verify": "step2/verify.sh" }
     ],
     "finish": { "text": "finish.md" }
   },
