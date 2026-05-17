@@ -623,6 +623,11 @@ spec:
 EOF
 
 # analytics: metrics-aggregator
+# >>> breakfix-01 mutation: image tag doesn't exist -> ImagePullBackOff.
+#     The learner is told "something is broken somewhere" with no hint, and
+#     must scan cluster-wide (kubectl get pods -A / kubectl get events -A)
+#     to find it. Inlined here (not a post-creation patch) so the mutation
+#     is guaranteed to apply regardless of background-script timing.
 kubectl create namespace analytics --dry-run=client -o yaml | kubectl apply -f - >/dev/null
 cat <<'EOF' | kubectl apply -f -
 apiVersion: apps/v1
@@ -640,12 +645,13 @@ spec:
     spec:
       containers:
         - name: app
-          image: nginx:1.25
+          image: nginx:doesnotexist-1.25-foobar   # MUTATED (baseline: nginx:1.25)
           ports: [{ containerPort: 80 }]
           resources:
             requests: { cpu: 50m, memory: 64Mi }
             limits:   { cpu: 200m, memory: 128Mi }
 EOF
+# <<< breakfix-01 mutation ends
 
 # number-porting: port-processor with ResourceQuota
 kubectl create namespace number-porting --dry-run=client -o yaml | kubectl apply -f - >/dev/null
@@ -684,20 +690,12 @@ EOF
 # Wait for the fleet to come up
 # ---------------------------------------------------------------------------
 
-kubectl wait --for=condition=Available deployment --all -A --timeout=240s >/dev/null 2>&1
-# StatefulSets don't have an Available condition; wait for at least one ready pod
+# Wait for the healthy fleet to come up. Keep timeouts short — Killercoda has
+# its own cap on background-script runtime, and metrics-aggregator will never
+# become Available anyway (it's intentionally broken).
+kubectl wait --for=condition=Available deployment --all -A --timeout=120s >/dev/null 2>&1
 for ns in media signaling app-services edge; do
-  kubectl wait --for=condition=Ready pod -l plane -n "$ns" --timeout=120s >/dev/null 2>&1
+  kubectl wait --for=condition=Ready pod -l plane -n "$ns" --timeout=60s >/dev/null 2>&1
 done
-
-# ===========================================================================
-# breakfix-01 mutation: break metrics-aggregator with a bad image tag.
-# The learner is told "something is broken somewhere" with no hint, and must
-# scan the whole cluster (kubectl get pods -A / kubectl get events -A
-# --sort-by=...) to find it. Fix is trivial once located.
-# ===========================================================================
-kubectl set image deployment/metrics-aggregator app=nginx:doesnotexist-1.25-foobar -n analytics >/dev/null 2>&1
-# Let the bad ReplicaSet roll out partially so the failure shows up clearly
-sleep 15
 
 touch /tmp/.setup-complete
