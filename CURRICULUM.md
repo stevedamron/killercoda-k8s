@@ -109,11 +109,29 @@ See `_internal/style-guide.md` for the full conventions.
 
 ## Status
 
-| Module                 | LESSON.md | ANSWER-KEY.md | baseline/ | breakfix-NN/ |
-|------------------------|-----------|---------------|-----------|--------------|
-| M00 Foundations        | ✅        | ✅            | ✅        | 1 of 3       |
-| M01 Workloads I        | —         | —             | —         | —            |
-| M02 Configuration      | —         | —             | —         | —            |
-| ... (remaining)        | —         | —             | —         | —            |
+| Module                 | LESSON | ANSWER-KEY | baseline/ | breakfix/ | Notes |
+|------------------------|--------|------------|-----------|-----------|-------|
+| M00 Foundations        | ✅     | ✅         | ✅        | 1 shipped (`context-blindness`) | Canonical template — match its shape going forward |
+| M01 Workloads I        | —      | —          | —         | —         | Next up |
+| M02 Configuration      | —      | —          | —         | —         | |
+| M03 Networking I       | —      | —          | —         | —         | |
+| M04 Storage            | —      | —          | —         | —         | |
+| M05 Scheduling         | —      | —          | —         | —         | |
+| M06 Workloads II       | —      | —          | —         | —         | |
+| M07 Resilience         | —      | —          | —         | —         | |
+| M08 Security           | —      | —          | —         | —         | |
+| M09 Observability      | —      | —          | —         | —         | |
+| M10 Networking II      | —      | —          | —         | —         | |
+| M11 Kustomize          | —      | —          | —         | —         | GitOps track |
+| M12 Helm               | —      | —          | —         | —         | GitOps track |
+| M13 Flux               | —      | —          | —         | —         | GitOps track |
+| M14 Multi-cluster      | —      | —          | —         | —         | GitOps track |
+| M15 Kyverno/OPA        | —      | —          | —         | —         | Policy track |
+| M16 Admission control  | —      | —          | —         | —         | Policy track |
+| M17 Host networking    | —      | —          | —         | —         | Real-time track |
+| M18 CPU/NUMA           | —      | —          | —         | —         | Real-time track |
+| M19 Stateful coord.    | —      | —          | —         | —         | Real-time track |
+| M20 Failure & recovery | —      | —          | —         | —         | Capstone |
+| M21 Operate platform   | —      | —          | —         | —         | Capstone |
 
-This table is the authoring backlog; update as each module ships.
+Update the `breakfix/` column with `N shipped (slug1, slug2, ...)` each time a scenario lands. Each module ships ≥1 break/fix scenario; additional scenarios get added as authoring proceeds and as failure modes worth teaching emerge.
