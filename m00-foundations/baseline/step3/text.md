@@ -66,4 +66,57 @@ timeout 5 kubectl get pods -n admin-portal --watch || true
 
 > One distinction worth knowing: `kubectl edit` is **triage** (opens the live object, your save applies it, you've now diverged from GitOps); `kubectl apply -f file.yaml` is **declarative** (same operation Flux/Argo run, a three-way merge against your manifest). See LESSON.md for the full contrast and when each is right.
 
+## Working with running workloads
+
+A handful of idioms you'll reach for constantly when a workload is already up and you need to inspect, talk to, or get metrics out of it. Each is bite-sized — try them on the healthy fleet so the syntax sticks.
+
+**Follow logs live with `-f`; `-c` picks one container in a multi-container Pod:**
+
+```bash
+kubectl logs -n admin-portal -l app=portal-ui -f --tail=10 &
+sleep 3 && kill %1
+```{{exec}}
+
+**Run a one-shot command inside a Pod (faster than ssh, no shell required):**
+
+```bash
+kubectl exec -n admin-portal deploy/portal-ui -- ls /etc/nginx
+```{{exec}}
+
+For an interactive shell, use `-it`. Not runnable via `{{exec}}` (no terminal), but useful in your own terminal:
+
+```bash
+kubectl exec -it -n admin-portal deploy/portal-ui -- sh
+# Ctrl-D to exit
+```
+
+**Port-forward a Service to localhost — test it without exposing publicly:**
+
+```bash
+kubectl port-forward -n admin-portal svc/portal-ui 8080:80 &
+sleep 2 && curl -s http://localhost:8080 | head -5 && kill %1
+```{{exec}}
+
+**Resource usage** — `kubectl top` queries metrics-server (installed by the baseline):
+
+```bash
+kubectl top nodes
+```{{exec}}
+
+```bash
+kubectl top pods -A --sort-by=cpu | head -10
+```{{exec}}
+
+**Services and the Pods behind them** — a Service is a stable virtual IP + DNS name; `Endpoints` is the live list of backing Pod IPs:
+
+```bash
+kubectl get svc -A | head -10
+```{{exec}}
+
+```bash
+kubectl get endpoints -n admin-portal portal-ui
+```{{exec}}
+
+The Endpoints object updates automatically as Pods come and go. When a Service "stops working," `kubectl get endpoints` is the first diagnostic — if Endpoints is empty, no Pods match the Service's selector.
+
 Move on to step 4.

@@ -17,6 +17,14 @@ The most common reason SREs flounder with Kubernetes is reaching for commands be
 
 You operate dozens of clusters at Polyphone — across regions and environment tiers — built and changed by people who aren't always still on the team. The skill that compounds is not memorization. It's the instinct to orient yourself fast, ask the cluster what it knows, and read what it tells you. This module is short on commands and long on concepts; every later module assumes you finished it.
 
+## Scope
+
+**Covers:** cluster anatomy (control plane vs nodes, the API server's role), the `spec` / `status` resource model, the canonical diagnostic loop (`get → describe → events → logs`), `kubectl` fluency for the everyday verbs and flags, reading the API with jsonpath / custom-columns / jq, and the most common pitfalls around context and namespace state.
+
+**Doesn't cover:** writing Deployments or other workload objects (M01), Service/networking depth (M04), configuration via ConfigMaps/Secrets (M03), security/RBAC (M10), CRDs and operators (M08). The breakfix scenarios touch a few of these primitives lightly so you can diagnose; the full mechanics come in later modules.
+
+**Assumes:** a container is a process-level isolation primitive; you're comfortable with basic Unix shell (`cd`, `ls`, `grep`, pipes, backgrounding with `&`); you've at least heard of Kubernetes as a container orchestrator. If you've never run `docker run`, start with a containers primer first.
+
 ## Vocabulary
 
 | Term | Definition |
@@ -84,7 +92,16 @@ This picture carries one load-bearing insight: **`kubectl` is a thin HTTPS clien
 
 ## Concept walkthrough
 
-### The resource model — everything is an object
+The walkthrough breaks into four moves:
+
+1. **How the cluster decides things** — what objects exist, and how controllers converge them.
+2. **How kubectl talks to the cluster** — the thin REST client and the day-to-day toolkit.
+3. **How to ask questions when something's wrong** — the diagnostic loop and cluster-wide awareness.
+4. **Knowing where you're pointed** — context and namespace orientation.
+
+### How the cluster decides things
+
+#### The resource model — everything is an object
 
 Every thing in Kubernetes is an object addressed by three coordinates: `kind`, `namespace`, `name`. Most are namespaced; a few are cluster-scoped (Nodes, PersistentVolumes, ClusterRoles).
 
@@ -142,7 +159,33 @@ Two surprises this causes:
 
 </details>
 
-### `kubectl` is a thin client
+#### The reconciliation loop
+
+You don't create Pods directly (you can, but you don't). You create higher-level objects — Deployments, StatefulSets, DaemonSets — and controllers create Pods for you. The Deployment controller watches Deployments. The ReplicaSet controller watches ReplicaSets. The scheduler watches Pods with no node assignment.
+
+For Deployments specifically, the chain has three levels:
+
+```mermaid
+%%{init: {'theme':'base', 'themeVariables': {
+  'primaryColor':'#2b2b2b', 'primaryTextColor':'#e6e6e6',
+  'primaryBorderColor':'#7a7a7a', 'lineColor':'#9a9a9a',
+  'secondaryColor':'#3a3a3a', 'tertiaryColor':'#1f1f1f',
+  'background':'#0f0f0f'
+}}}%%
+flowchart TB
+    d[Deployment<br/>you write this] -->|owns / rolls| r[ReplicaSet<br/>maintains replica count]
+    r -->|creates one Pod<br/>per replica| p[Pods<br/>the actual workloads]
+```
+
+This **owner chain** matters for diagnosis. When a controller fails to create something, the failure event attaches to the *creator*, not to the thing that wasn't created. That's why `kubectl describe pod` shows nothing for a Pod that never got created — you must `kubectl describe rs` or `kubectl get events -n <ns>` instead. You'll exercise this exact instinct in `breakfix-03`. The same shape applies to other owner chains you'll meet later (`CronJob → Job → Pod`, `PVC → PV → StorageClass`).
+
+A Deployment is a contract: "always have N replicas of this Pod template running." A controller reads the spec ("3 replicas"), reads the status ("2 ready"), and acts ("create one more"). Delete a Pod and the ReplicaSet controller creates a new one within seconds. Change the template and the Deployment controller runs a rolling replacement.
+
+This is the difference between Kubernetes and a configuration management tool. You describe outcomes, not steps. You don't tell Kubernetes "start a container, wait for it, check it." You tell it "there should be a thing that looks like this." Controllers handle the rest, forever, on every cluster<sup><a href="https://kubernetes.io/docs/concepts/architecture/controller/">[4]</a></sup>.
+
+### How kubectl talks to the cluster
+
+#### kubectl is a thin client
 
 When you run `kubectl get pods -n admin-portal`, kubectl:
 
@@ -174,7 +217,7 @@ When a cluster says "Unauthorized" and the cert hasn't expired, the most common 
 
 </details>
 
-### Common kubectl idioms — what you'll type day-to-day
+#### Common kubectl idioms — what you'll type day-to-day
 
 Eight verbs and a handful of flags carry you through 90% of routine work:
 
@@ -193,7 +236,21 @@ Flags you'll combine endlessly: `-n <ns>`, `-A`, `-l key=value`, `-o wide` / `-o
 
 **`edit` vs `apply`:** `edit` is triage (opens live object, applies on save, diverges from GitOps); `apply` is declarative (three-way merge against your manifest, same operation Flux/Argo run). Change the manifest in git → `apply` for anything persistent. Read-only commands are safe anywhere; state-changing commands need a context check first — `breakfix-01` shows what happens when you skip it.
 
-### Reading the API: jsonpath, custom-columns, jq
+<details>
+<summary>📖 Going deeper: server-side apply — why <code>kubectl apply</code> surprises you<sup><a href="https://kubernetes.io/docs/reference/using-api/server-side-apply/">[6]</a></sup></summary>
+
+`kubectl apply` doesn't simply overwrite the object. It does a three-way merge: the live state on the server, the previous applied configuration (stored in an annotation in older versions; tracked by `managedFields` since 1.22), and your new configuration<sup><a href="https://kubernetes.io/docs/reference/using-api/server-side-apply/">[6]</a></sup>. Fields you removed from your YAML get removed from the live object. Fields you didn't touch are left alone.
+
+Two surprises you'll hit eventually:
+
+- **Conflict errors** when another field manager (a different tool, a controller, or a previous `kubectl edit`) owns a field you're trying to set. The fix is either `--force-conflicts` (you take ownership) or coordinating with whoever owns the field.
+- **Disappearing fields** when you apply a YAML that omits a field someone else (or a controller) added. Server-side apply remembers who set what; if you used to set it, removing it from your YAML deletes it from the object.
+
+This is why GitOps tools that own a manifest end-to-end (Flux, Argo CD) avoid most of these — they're the single field manager. You'll meet that pattern in M18.
+
+</details>
+
+#### Reading the API: jsonpath, custom-columns, jq
 
 Every Kubernetes object is JSON under the hood. Three tools pull specific fields out:
 
@@ -218,31 +275,9 @@ Prefer labels → field selectors → jq, in that order. If you're jq-filtering 
 
 </details>
 
-### The reconciliation loop
+### How to ask questions when something's wrong
 
-You don't create Pods directly (you can, but you don't). You create higher-level objects — Deployments, StatefulSets, DaemonSets — and controllers create Pods for you. The Deployment controller watches Deployments. The ReplicaSet controller watches ReplicaSets. The scheduler watches Pods with no node assignment.
-
-For Deployments specifically, the chain has three levels:
-
-```mermaid
-%%{init: {'theme':'base', 'themeVariables': {
-  'primaryColor':'#2b2b2b', 'primaryTextColor':'#e6e6e6',
-  'primaryBorderColor':'#7a7a7a', 'lineColor':'#9a9a9a',
-  'secondaryColor':'#3a3a3a', 'tertiaryColor':'#1f1f1f',
-  'background':'#0f0f0f'
-}}}%%
-flowchart TB
-    d[Deployment<br/>you write this] -->|owns / rolls| r[ReplicaSet<br/>maintains replica count]
-    r -->|creates one Pod<br/>per replica| p[Pods<br/>the actual workloads]
-```
-
-This **owner chain** matters for diagnosis. When a controller fails to create something, the failure event attaches to the *creator*, not to the thing that wasn't created. That's why `kubectl describe pod` shows nothing for a Pod that never got created — you must `kubectl describe rs` or `kubectl get events -n <ns>` instead. You'll exercise this exact instinct in `breakfix-03`. The same shape applies to other owner chains you'll meet later (`CronJob → Job → Pod`, `PVC → PV → StorageClass`).
-
-A Deployment is a contract: "always have N replicas of this Pod template running." A controller reads the spec ("3 replicas"), reads the status ("2 ready"), and acts ("create one more"). Delete a Pod and the ReplicaSet controller creates a new one within seconds. Change the template and the Deployment controller runs a rolling replacement.
-
-This is the difference between Kubernetes and a configuration management tool. You describe outcomes, not steps. You don't tell Kubernetes "start a container, wait for it, check it." You tell it "there should be a thing that looks like this." Controllers handle the rest, forever, on every cluster<sup><a href="https://kubernetes.io/docs/concepts/architecture/controller/">[4]</a></sup>.
-
-### The canonical diagnostic loop
+#### The canonical diagnostic loop
 
 When something is wrong, you reach for the same four commands in the same order:
 
@@ -267,7 +302,7 @@ This loop is the foundation. If you do nothing else from this module, internaliz
 
 The most common skipped step is `events`. Many problems have an answer that's plain text in `kubectl get events --sort-by='.lastTimestamp'` and learners never run it.
 
-### Cluster-wide situational awareness
+#### Cluster-wide situational awareness
 
 When you don't know which namespace something is in, pivot to cluster-wide before zooming in:
 
@@ -281,7 +316,9 @@ kubectl get events -A --sort-by='.lastTimestamp' | tail -50                     
 
 The `-A` flag (alias of `--all-namespaces`) is your friend whenever you're triaging an unfamiliar situation. The first command for "something is broken somewhere on the cluster" is always `kubectl get pods -A`.
 
-### Contexts and namespaces — knowing where you are
+### Knowing where you're pointed
+
+#### Contexts and namespaces
 
 ```bash
 kubectl config get-contexts                                       # list known contexts
@@ -290,20 +327,6 @@ kubectl config set-context --current --namespace=admin-portal     # set default 
 ```
 
 The most embarrassing class of incident in a multi-cluster shop is running a state-changing command against the wrong cluster. Always run `current-context` before any apply/patch/delete on production. Better: customize your shell prompt to display the current context, or use a tool like `kubectx` / `kubens` / `kubeswitch` so the active cluster is always visible.
-
-<details>
-<summary>📖 Going deeper: server-side apply — why <code>kubectl apply</code> surprises you<sup><a href="https://kubernetes.io/docs/reference/using-api/server-side-apply/">[6]</a></sup></summary>
-
-`kubectl apply` doesn't simply overwrite the object. It does a three-way merge: the live state on the server, the previous applied configuration (stored in an annotation in older versions; tracked by `managedFields` since 1.22), and your new configuration<sup><a href="https://kubernetes.io/docs/reference/using-api/server-side-apply/">[6]</a></sup>. Fields you removed from your YAML get removed from the live object. Fields you didn't touch are left alone.
-
-Two surprises you'll hit eventually:
-
-- **Conflict errors** when another field manager (a different tool, a controller, or a previous `kubectl edit`) owns a field you're trying to set. The fix is either `--force-conflicts` (you take ownership) or coordinating with whoever owns the field.
-- **Disappearing fields** when you apply a YAML that omits a field someone else (or a controller) added. Server-side apply remembers who set what; if you used to set it, removing it from your YAML deletes it from the object.
-
-This is why GitOps tools that own a manifest end-to-end (Flux, Argo CD) avoid most of these — they're the single field manager. You'll meet that pattern in M18.
-
-</details>
 
 ## Hands-on
 
@@ -332,8 +355,7 @@ After each scenario, check yourself against `ANSWER-KEY.md` — it walks through
 - `kubectl` is a thin HTTPS client. Every command is an API call. `-v=6` shows the exact request.
 - Every object has the same `spec` (what you want) / `status` (what is) shape. When something's wrong, the gap between the two is where the answer lives.
 - Controllers reconcile spec to status continuously. You describe outcomes; they handle the steps.
-- The diagnostic loop is `get → describe → events → logs`, in order. Most problems surrender to it. `events` is the most-skipped step and often the fastest path to the answer.
-- When you don't know where a problem lives, pivot cluster-wide with `-A` before zooming in. `kubectl get events -A --sort-by='.lastTimestamp'` surfaces failures as plain text in seconds.
+- The diagnostic loop is `get → describe → events → logs`, in order. When you don't know *where* to look, scan cluster-wide with `-A` first. `events` is the most-skipped step and often the fastest path to the answer.
 
 ## Production thinking
 
