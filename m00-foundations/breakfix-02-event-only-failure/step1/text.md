@@ -28,7 +28,19 @@ You're at the limit of what pod-level inspection can tell you. The missing pod w
 
 ## Climb the owner chain
 
-A Deployment doesn't create Pods directly. It creates a ReplicaSet; the ReplicaSet creates Pods. When pod creation fails, the failure event lives on the ReplicaSet.
+A Deployment doesn't create Pods directly. It creates a ReplicaSet; the ReplicaSet creates Pods. When pod creation fails, the failure event lives on the ReplicaSet — there's no Pod to attach it to.
+
+```text
+Deployment  port-processor          ← spec: replicas: 3
+       │
+       ▼
+ReplicaSet  port-processor-7d8f     ← tried to create 3 Pods
+       │      │       │
+       ▼      ▼       ✗  FailedCreate (exceeded quota)
+    Pod-1  Pod-2   (no Pod here — event lives on the RS)
+```
+
+That picture is the whole lesson of this scenario: `describe pod` dead-ends when there's no Pod to describe. Climb one level up.
 
 ```bash
 kubectl get rs -n number-porting
