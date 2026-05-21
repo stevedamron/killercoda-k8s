@@ -11,7 +11,7 @@ kubectl get pods
 Output:
 
 ```text
-No resources found in kube-public namespace.
+No resources found in default namespace.
 ```
 
 Wait. The alert claims workloads are unhealthy. But `kubectl get pods` says there are no pods at all. Did someone delete everything? Did the cluster reboot empty? Did you get paged for the wrong cluster?

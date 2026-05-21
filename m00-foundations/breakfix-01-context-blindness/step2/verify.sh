@@ -1,10 +1,13 @@
 #!/bin/bash
-# Checks: current kubeconfig default namespace is no longer kube-public.
-# Accepts any value other than kube-public (default, admin-portal, etc.).
+# Checks: current kubeconfig default namespace is now a Polyphone workload
+# namespace, not the broken `default` scope. The broken state is namespace
+# explicitly set to "default" (or unset, which K8s resolves to "default").
 CURRENT_NS=$(kubectl config view --minify -o jsonpath='{.contexts[0].context.namespace}' 2>/dev/null)
-[ "$CURRENT_NS" != "kube-public" ] || { echo "Default namespace is still 'kube-public'. Set to anything else (e.g., 'default')." >&2; exit 1; }
+if [ -z "$CURRENT_NS" ] || [ "$CURRENT_NS" = "default" ]; then
+  echo "Default namespace is still 'default' (or unset). Set to a Polyphone workload namespace, e.g.:" >&2
+  echo "  kubectl config set-context --current --namespace=app-services" >&2
+  exit 1
+fi
 
-# If unset, also accept (means context-level default = "default" namespace)
-DISPLAY="${CURRENT_NS:-default}"
-echo "✓ Default namespace corrected: $DISPLAY"
+echo "✓ Default namespace corrected: $CURRENT_NS"
 exit 0

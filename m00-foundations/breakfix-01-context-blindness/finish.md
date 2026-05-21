@@ -1,6 +1,6 @@
 # Done
 
-You confirmed the cluster was healthy before assuming it was broken, identified that your kubeconfig default namespace was scoped to `kube-public`, and corrected it. The load-bearing skill: **suspect your own setup before the cluster.**
+You confirmed the cluster was healthy before assuming it was broken, identified that your kubeconfig default namespace was scoped to `default` (where Polyphone has no workloads), and corrected it. The load-bearing skill: **suspect your own setup before the cluster.**
 
 **Next:**
 

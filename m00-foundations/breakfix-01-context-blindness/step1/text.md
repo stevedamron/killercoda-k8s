@@ -13,10 +13,10 @@ The cluster has plenty of pods running across the Polyphone namespaces, `kube-sy
 So why did `kubectl get pods` return nothing? Read the error message again:
 
 ```text
-No resources found in kube-public namespace.
+No resources found in default namespace.
 ```
 
-`kubectl` is scoping the query to `kube-public`. That namespace has no Polyphone workloads (Kubernetes uses it for cluster-info ConfigMaps, nothing else). The cluster isn't broken — your default namespace is set wrong.
+`kubectl` is scoping the query to `default` — but Polyphone workloads all live in named namespaces (`app-services`, `media`, `signaling`, etc.); `default` is empty. The cluster isn't broken — your default namespace is set wrong.
 
 ## Confirm where you are
 
@@ -30,14 +30,14 @@ This tells you which **cluster + user + namespace** combo `kubectl` is pointed a
 kubectl config view --minify
 ```{{exec}}
 
-`--minify` shows only the active context's details. Look at the `namespace:` line under `context:`. You'll see `namespace: kube-public`.
+`--minify` shows only the active context's details. Look at the `namespace:` line under `context:`. You'll see `namespace: default`.
 
 ```bash
 kubectl config get-contexts
 ```{{exec}}
 
-The column `NAMESPACE` shows the default namespace for each context. The active one (marked with `*`) is `kube-public`.
+The `NAMESPACE` column shows the default namespace for each context. The active one (marked with `*`) is `default`.
 
-The cluster is fine. The **kubeconfig** (`~/.kube/config` — the file `kubectl` reads to know which cluster, which credentials, and what default namespace to use) says "by default, scope every query to `kube-public`". That's why your unscoped `kubectl get pods` returned nothing.
+The cluster is fine. The **kubeconfig** (`~/.kube/config` — the file `kubectl` reads to know which cluster, which credentials, and what default namespace to use) is scoping every query to `default`, where Polyphone has nothing.
 
 The instinct to build: **suspect your own setup before the cluster.** Move to step 2.

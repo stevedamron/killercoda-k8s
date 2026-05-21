@@ -16,7 +16,7 @@ M00 teaches the mental model, the day-to-day `kubectl` toolkit, and the four-com
 The baseline has no broken state. Each step produces predictable output. If a step doesn't behave as expected, here's what to check.
 
 - **Step 1 (anatomy):** `kubectl get nodes -o wide` shows 2 nodes (control-plane + worker). `kubectl get pods -n kube-system` shows the core control-plane pods (`etcd`, `kube-apiserver`, `kube-controller-manager`, `kube-scheduler`, `coredns`, and usually `kube-proxy`). `kube-proxy` is optional in some setups — clusters using Cilium's kube-proxy replacement, for example, skip it; the verify script treats it as optional. If those names aren't familiar yet, read [LESSON.md](LESSON.md) § Vocabulary — they recur in every later module.
-- **Step 2 (fleet tour):** `kubectl get pods -A` reveals 10 Polyphone namespaces alongside `kube-system`, `local-path-storage`, and `kube-public`. Notice the `plane=media|signaling|...` labels — they segment the fleet by architectural responsibility and you'll use them in M14 for NetworkPolicies.
+- **Step 2 (fleet tour):** `kubectl get pods -A` reveals 10 Polyphone namespaces alongside the standard `kube-system` and `local-path-storage` infrastructure namespaces. Notice the `plane=media|signaling|...` labels — they segment the fleet by architectural responsibility and you'll use them in M14 for NetworkPolicies.
 - **Step 3 (kubectl idioms):** A fluency drill — the day-to-day verbs (`get / describe / logs / exec / apply / edit / delete / port-forward`), the flags you combine constantly (`-n -A -l --watch -f -c --previous -o wide/yaml/json`), and how `kubectl edit` differs from `kubectl apply`. None of it is broken; you're building the muscle memory.
 - **Step 4 (JSON unpacking):** Reading the raw API state. `kubectl get --raw`, `-o jsonpath` for quick field extraction, `-o custom-columns` for ad-hoc tables, and a brief `jq` crash course for when jsonpath isn't enough.
 - **Step 5 (diagnostic loop):** Walks `get → describe → events → logs` against the healthy `portal-ui` Deployment. The point is the *pattern*, not the diagnosis (nothing is wrong). After this step you should be able to repeat the loop on any Pod in any namespace.
@@ -28,12 +28,12 @@ The baseline has no broken state. Each step produces predictable output. If a st
 **Symptom:** Alert fires that Polyphone workloads are degraded. You run `kubectl get pods` and get back:
 
 ```text
-No resources found in kube-public namespace.
+No resources found in default namespace.
 ```
 
 The cluster appears empty. But the alert says workloads are unhealthy. Something doesn't add up.
 
-**Root cause:** The kubeconfig's default namespace is set to `kube-public` (which legitimately has no Polyphone workloads). The cluster is fully healthy; the operator's *view* of it is misconfigured<sup><a href="https://kubernetes.io/docs/tasks/access-application-cluster/configure-access-multiple-clusters/">[1]</a></sup>.
+**Root cause:** The kubeconfig's default namespace is set explicitly to `default` (which is empty — Polyphone workloads all live in named namespaces like `app-services`, `media`, etc.). The cluster is fully healthy; the operator's *view* of it is misconfigured<sup><a href="https://kubernetes.io/docs/tasks/access-application-cluster/configure-access-multiple-clusters/">[1]</a></sup>.
 
 **Diagnostic commands (the canonical path):**
 
@@ -43,27 +43,24 @@ kubectl get pods -A
 # The cluster is fully populated. So the issue is with your view.
 
 # 2. Re-read the original error message carefully
-#    "No resources found in kube-public namespace."
+#    "No resources found in default namespace."
 #    kubectl is telling you exactly where it looked
 
 # 3. Confirm what your kubeconfig says
 kubectl config current-context
 kubectl config view --minify
-# Shows context's namespace: kube-public
+# Shows context's namespace: default
 kubectl config get-contexts
-# The * row's NAMESPACE column also shows kube-public
+# The * row's NAMESPACE column also shows default
 ```
 
 **Fix:**
 
 ```bash
-# Option A (recommended): scope to a workload namespace, so the verify
-# command produces visible workloads — visible proof the cluster was always fine.
+# Scope to a workload namespace. The fleet has 10 named namespaces
+# (app-services, media, signaling, admin-portal, analytics, …) — pick
+# whichever fits the task at hand.
 kubectl config set-context --current --namespace=app-services
-
-# Option B: clean-slate reset to `default`. Conventional, but `default` is
-# empty on this lab; useful as a deliberate reset between tasks.
-kubectl config set-context --current --namespace=default
 ```
 
 **Verify:**
@@ -72,16 +69,14 @@ kubectl config set-context --current --namespace=default
 kubectl config view --minify | grep namespace:
 # namespace: app-services  (or whichever you set)
 kubectl get pods
-# Shows the namespace's workloads — proving the cluster was always healthy,
-# your view was scoped wrong. (If you used Option B and reset to `default`,
-# you'll still see "No resources found in default namespace" — but the
-# namespace in the error message now matches what you set, which is the point.)
+# Shows the namespace's workloads — visible proof the cluster was
+# always healthy, your view was scoped wrong.
 ```
 
 **What this scenario tests:**
 
 - Did you reach for `kubectl get pods -A` BEFORE assuming the cluster was broken? That single command separates "view is wrong" from "cluster is wrong" in 2 seconds.
-- Did you read the error message carefully? `"No resources found in kube-public namespace"` literally told you the scope.
+- Did you read the error message carefully? `"No resources found in default namespace"` literally told you the scope.
 - Do you know `kubectl config current-context` (which cluster/user/namespace combo is active) and `kubectl config view --minify` (the full settings)?
 
 The anti-pattern: assume the cluster is broken, start poking at individual workloads, waste 15 minutes before noticing the prompt says you're in the wrong place.
@@ -90,7 +85,7 @@ The anti-pattern: assume the cluster is broken, start poking at individual workl
 
 **Production thinking:** Three operational practices that make this class of incident impossible:
 
-1. **Shell prompt customization** — show `<context>:<namespace>` in your prompt at all times (e.g., [kube-ps1](https://github.com/jonmosco/kube-ps1)). If you can see "prod-us-east-1:kube-public" in your prompt, you'll never get surprised.
+1. **Shell prompt customization** — show `<context>:<namespace>` in your prompt at all times (e.g., [kube-ps1](https://github.com/jonmosco/kube-ps1)). If you can see "prod-us-east-1:default" in your prompt, you'll never get surprised by a misconfigured scope.
 2. **Separate terminals per environment** — don't share a terminal between prod and lab. Different windows, different colors, different tmux sessions. Make context-switching require deliberate action.
 3. **Read-only contexts for prod by default** — kubeconfig maps prod to a read-only user; switching to write-capable is a deliberate, separate action. Cuts wrong-cluster mutations to near-zero.
 

@@ -23,7 +23,7 @@ This is the canonical "what's running anywhere on this cluster" command. Memoriz
 
 Quick vocabulary before reading the output: a **Pod** is the smallest deployable unit — one or more containers that share a network IP and lifecycle. A **namespace** is a logical grouping inside the cluster used for organization, RBAC scoping, quotas, and DNS. Almost everything you'll touch in this curriculum is a Pod, living in a namespace.
 
-You should see ~25 pods spread across the Polyphone namespaces, plus the `kube-system`, `local-path-storage`, and `kube-public` infrastructure namespaces.
+You should see ~25 pods spread across the Polyphone namespaces, plus the standard `kube-system` and `local-path-storage` infrastructure namespaces.
 
 ## Filter by plane
 

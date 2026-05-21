@@ -689,19 +689,23 @@ for ns in media signaling app-services edge; do
   kubectl wait --for=condition=Ready pod -l plane -n "$ns" --timeout=60s >/dev/null 2>&1
 done
 
-# >>> breakfix-01 mutation: set the default namespace to kube-public.
+# >>> breakfix-01 mutation: set the default namespace explicitly to `default`.
 #     Cluster is fully healthy; the learner's *view* of it is broken.
-#     `kubectl get pods` returns "No resources found" because they're
-#     scoped to kube-public, which is empty. Tests the contexts/namespaces
-#     instinct — "suspect your own setup before the cluster."
+#     `kubectl get pods` returns "No resources found in default namespace"
+#     because Polyphone workloads all live in named namespaces — `default`
+#     is empty. Tests the contexts/namespaces instinct — "suspect your own
+#     setup before the cluster."
+#
+# We set it EXPLICITLY (vs leaving it unset) so the learner sees
+# `namespace: default` in `kubectl config view --minify` — tangible
+# kubeconfig drift, not just K8s's implicit fallback.
 #
 # Load-bearing for this scenario — DO NOT swallow errors here. Verify the
-# change actually took, and fail loudly if not (better than a silently
-# broken lab where the prose says kube-public but kubectl sees `default`).
-kubectl config set-context --current --namespace=kube-public
+# change actually took, and fail loudly if not.
+kubectl config set-context --current --namespace=default
 GOT=$(kubectl config view --minify -o jsonpath='{.contexts[0].context.namespace}' 2>/dev/null)
-if [ "$GOT" != "kube-public" ]; then
-  echo "FATAL: breakfix-01 mutation failed — kubeconfig namespace is '$GOT', expected 'kube-public'." >&2
+if [ "$GOT" != "default" ]; then
+  echo "FATAL: breakfix-01 mutation failed — kubeconfig namespace is '$GOT', expected 'default'." >&2
   echo "This scenario cannot proceed. The lab will hang at 'Waiting for setup...'; restart the lab to retry." >&2
   exit 1
 fi
