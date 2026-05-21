@@ -65,7 +65,7 @@ kubectl get statefulsets -A
 kubectl get daemonsets -A
 ```{{exec}}
 
-Notice the pattern: stateless web/API tier → Deployment. Anything that holds session state, registration state, or per-Pod storage → StatefulSet. Per-node agents → DaemonSet. When you're staring at an unfamiliar workload, the controller type tells you 80% of what to expect about its identity, lifecycle, and storage model.
+Each command shows the workloads managed by that controller. The controller type tells you how the workload behaves (identity, lifecycle, storage) — useful when you land on an unfamiliar service in production.
 
 ## Verify
 

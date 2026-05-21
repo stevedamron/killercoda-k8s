@@ -42,32 +42,14 @@ kubectl get pods
 
 Returns nothing — `default` is empty on this lab (Polyphone workloads all live in named namespaces). But notice the error message now reads `No resources found in default namespace` — your scope is no longer surprising, which is the whole point.
 
-## Confirm the alert was a false signal
-
-The cluster was healthy the whole time. Sanity-check fleet-wide:
+## Confirm the cluster was healthy all along
 
 ```bash
-kubectl get pods -A -l plane --field-selector=status.phase!=Running --no-headers | wc -l
+kubectl get pods -n app-services
 ```{{exec}}
 
-Should be `0`. We scope with `-l plane` to count only Polyphone workloads — a bare `-A` also catches cluster-service helpers (e.g., `local-path-provisioner`) that legitimately sit in `Succeeded` phase. Fleet is green; the alert was either stale, misrouted, or your monitoring was pointing at the same misconfigured kubeconfig you were. (In a real shop, the *alert* is now the bug — investigate why it fired against a healthy cluster.)
+You see the workloads — the cluster was never broken. The alert was either stale, misrouted, or your monitoring was pointing at the same misconfigured kubeconfig you were.
 
-## What this scenario tested
-
-Three instincts:
-
-- Did you check `kubectl get pods -A` BEFORE assuming the cluster was broken? That single command would have shown the cluster is fully populated.
-- Did you read the error message carefully? `"No resources found in kube-public namespace"` literally told you the namespace was scoped wrong.
-- Do you know the difference between `current-context` (which cluster) and the namespace within a context (which default scope)?
-
-For the full canonical walkthrough and self-grading, see `ANSWER-KEY.md`.
-
-## Production thinking
-
-Three operational practices that make this class of incident impossible:
-
-1. **Shell prompt customization.** Make your terminal show `<context>:<namespace>` at all times. Tools like [kube-ps1](https://github.com/jonmosco/kube-ps1) or oh-my-zsh's kubectl plugin do this. If you can see "prod-us-east-1:kube-public" in your prompt, you'll never get surprised.
-2. **Separate terminals per environment.** Don't share a terminal between `prod` and `lab`. Use different windows, different colors, different tmux sessions. Make context-switching require deliberate action.
-3. **Read-only contexts for `prod` by default.** Use a kubeconfig that maps `prod` to a read-only user. Switch to a write-capable context as a separate, deliberate action. Cuts wrong-cluster mutations to near-zero.
+For self-grading and the production practices that make this class of incident impossible, see [`ANSWER-KEY.md`](../ANSWER-KEY.md). For the underlying concepts (contexts, kubeconfig, the resource model), see [`LESSON.md`](../LESSON.md).
 
 You're done with breakfix-01. See `finish.md`.

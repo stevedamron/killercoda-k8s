@@ -47,24 +47,6 @@ kubectl get events -n number-porting --sort-by='.lastTimestamp' | tail -5
 
 Recent events should show `SuccessfulCreate` instead of `FailedCreate`.
 
-## What this scenario tested
-
-Three instincts:
-
-- Did you reach for `kubectl get events` or `kubectl describe rs` when pod-level checks came up empty? That's the climb-the-owner-chain instinct.
-- Did you understand that `kubectl describe pod` only sees events on Pods, not on the controllers that create them?
-- Did you stop to ask "should I raise the quota or reduce replicas?" — quotas exist for a reason; the production answer depends on whether the quota was wrong or the desired replica count was wrong.
-
-For the full canonical walkthrough and self-grading, see `ANSWER-KEY.md`.
-
-## Production thinking
-
-`ResourceQuota` is a guardrail. Raising it to bypass a failure trains the wrong instinct — eventually quotas don't constrain anything. In production:
-
-1. Find out *why* the Deployment wants 3 replicas (was it scaled? was the manifest updated? does the workload actually need 3?).
-2. If 3 is correct: open a PR raising the quota with justification (capacity review, cost impact).
-3. If 3 is wrong: revert the replica change in your GitOps source of truth, not via `kubectl scale`.
-
-Either way, the `kubectl patch` you just ran is a triage step — not a fix. Flux will re-apply the original manifest on its next reconciliation and you'll be back at READY 2/3 unless the gitops source matches your intent.
+For self-grading and the production answer (raise the quota vs revert the replica bump — `kubectl patch` is triage, the real fix lives in GitOps), see [`ANSWER-KEY.md`](../ANSWER-KEY.md). For the resource model and owner-chain concepts, see [`LESSON.md`](../LESSON.md).
 
 You're done with breakfix-03. See `finish.md`.

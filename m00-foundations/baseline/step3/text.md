@@ -64,13 +64,6 @@ kubectl get deployment portal-ui -n admin-portal -o yaml | head -30
 timeout 5 kubectl get pods -n admin-portal --watch || true
 ```{{exec}}
 
-## `edit` vs `apply` — what's the difference
-
-- **`kubectl edit`** opens the live object in your `$EDITOR`. Save and quit; the change is applied immediately. **Triage only** — you've now bypassed GitOps and your change will drift back the next time the source-of-truth reconciles.
-- **`kubectl apply -f file.yaml`** is declarative. It's what CI/CD systems (Flux, Argo) run. If you control the manifest in git, this is the verb.
-
-For lab work, `edit` is fast. For anything that should persist past the next reconciliation, change the manifest in git and let `apply` (or your GitOps controller) carry it.
-
-> Day-to-day rule of thumb: read-only commands (`get`, `describe`, `logs`) are safe anywhere. State-changing commands (`apply`, `edit`, `delete`, `scale`, `patch`, `rollout restart`) need a deliberate "am I in the right context?" check first. See `breakfix-01` for what happens when you skip that check.
+> One distinction worth knowing: `kubectl edit` is **triage** (opens the live object, your save applies it, you've now diverged from GitOps); `kubectl apply -f file.yaml` is **declarative** (same operation Flux/Argo run, a three-way merge against your manifest). See LESSON.md for the full contrast and when each is right.
 
 Move on to step 4.

@@ -35,35 +35,14 @@ kubectl get pods -n analytics
 
 You should see one `Running` pod with `1/1 READY`, `0` restarts.
 
-## Confirm the alert would now clear
+## Confirm the workload is healthy
 
 ```bash
-kubectl get pods -A -l plane --field-selector=status.phase!=Running --no-headers | wc -l
+kubectl get pods -n analytics
 ```{{exec}}
 
-The result should be `0` (or only short-lived `Pending` pods rolling out). We scope with `-l plane` to count only Polyphone workloads — a bare `-A` also catches cluster-service pods (e.g., `local-path-provisioner` helpers) that legitimately sit in `Succeeded` phase and would inflate the count.
+You should see `metrics-aggregator-*` pods Running with `1/1 READY`. The alert would now clear.
 
-## What this scenario tested
-
-Three instincts:
-
-- First-command instinct: did you reach for `-A`?
-- Diagnostic loop: did you progress `get → events → describe` in order, or did you guess?
-- `kubectl set image` vs `kubectl edit`: do you know both and pick the right one?
-
-For the full canonical walkthrough and self-grading questions, see `ANSWER-KEY.md`.
-
-## Production thinking
-
-`kubectl set image` is a bandaid. It works, but the change isn't reflected in your GitOps source of truth. On the next Flux reconciliation the cluster could drift back to the broken state — or worse, your fix gets reverted when an unrelated PR merges.
-
-The production fix:
-
-1. Triage with `kubectl set image` to stop the bleeding.
-2. Open a PR to `platform-gitops` correcting the manifest.
-3. Let Flux re-apply the corrected manifest, eliminating the out-of-band fix.
-4. Post-mortem: how did the bad image tag merge in the first place? Should CI block deployments referencing non-existent images?
-
-You'll meet Flux and the GitOps loop in M18. The principle to carry forward: `kubectl` changes are temporary unless the source of truth agrees.
+For self-grading and the GitOps production fix (`kubectl set image` is triage; the real fix lives in `platform-gitops`), see [`ANSWER-KEY.md`](../ANSWER-KEY.md). For the diagnostic loop concepts behind this, see [`LESSON.md`](../LESSON.md).
 
 You're done with breakfix-02. See `finish.md`.

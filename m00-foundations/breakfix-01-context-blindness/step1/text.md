@@ -40,13 +40,4 @@ The column `NAMESPACE` shows the default namespace for each context. The active 
 
 The cluster is fine. The **kubeconfig** (`~/.kube/config` — the file `kubectl` reads to know which cluster, which credentials, and what default namespace to use) says "by default, scope every query to `kube-public`". That's why your unscoped `kubectl get pods` returned nothing.
 
-## Why this matters
-
-This is the most common false-alarm in a multi-cluster shop. Someone:
-
-- Switched namespaces with `kubens` and forgot to switch back
-- Ran a command earlier with `kubectl config set-context --current --namespace=...` and didn't reset
-- Was handed a kubeconfig pre-scoped to an unusual namespace
-- Is on the wrong cluster entirely (different `current-context`)
-
-The fix is trivial. The instinct — **suspect your own setup before the cluster** — is the lesson. Move to step 2.
+The instinct to build: **suspect your own setup before the cluster.** Move to step 2.
