@@ -11,7 +11,7 @@ M00 teaches the mental model and the four-command diagnostic loop. The `baseline
 
 The baseline has no broken state. Each step produces predictable output. If a step doesn't behave as expected, here's what to check.
 
-- **Step 1 (anatomy):** `kubectl get nodes -o wide` shows 2 nodes (control-plane + worker). `kubectl get pods -n kube-system` shows the core control-plane pods (`etcd`, `kube-apiserver`, `kube-controller-manager`, `kube-scheduler`, `kube-proxy`, `coredns`). If those names aren't familiar yet, read [LESSON.md](LESSON.md) § Vocabulary — they recur in every later module.
+- **Step 1 (anatomy):** `kubectl get nodes -o wide` shows 2 nodes (control-plane + worker). `kubectl get pods -n kube-system` shows the core control-plane pods (`etcd`, `kube-apiserver`, `kube-controller-manager`, `kube-scheduler`, `coredns`, and usually `kube-proxy`). `kube-proxy` is optional in some setups — clusters using Cilium's kube-proxy replacement, for example, skip it; the verify script treats it as optional. If those names aren't familiar yet, read [LESSON.md](LESSON.md) § Vocabulary — they recur in every later module.
 - **Step 2 (fleet tour):** `kubectl get pods -A` reveals 10 Polyphone namespaces alongside `kube-system`, `local-path-storage`, and `kube-public`. Notice the `plane=media|signaling|...` labels — they segment the fleet by architectural responsibility and you'll use them in M10 for NetworkPolicies.
 - **Step 3 (diagnostic loop):** Walks `get → describe → events → logs` against the healthy `portal-ui` Deployment. The point is the *pattern*, not the diagnosis (nothing is wrong). After this step you should be able to repeat the loop on any Pod in any namespace.
 
@@ -140,15 +140,23 @@ kubectl get events -n number-porting --sort-by='.lastTimestamp'
 ```bash
 # Confirm the quota
 kubectl get resourcequota -n number-porting
-# USED 2/2  HARD 2
+# NAME        REQUEST     LIMIT   AGE
+# pod-limit   pods: 2/2           ...   <- used/hard for pods. The deployment wants 3.
+
+# For the full breakdown (used, hard, scopes), use describe:
+kubectl describe resourcequota pod-limit -n number-porting
+# Resource  Used  Hard
+# pods      2     2
 ```
 
 **Fix (two valid options):**
 
 ```bash
-# Option A: raise the quota (use when 3 replicas was the intended count)
+# Option A: raise the quota to match demand (use when 3 replicas was the intended count)
+# Set to 3 — exactly what the Deployment needs, no headroom. Adding headroom is a
+# capacity-planning question, not a triage one; do it via PR with justification.
 kubectl patch resourcequota pod-limit -n number-porting --type=merge \
-  -p '{"spec":{"hard":{"pods":"5"}}}'
+  -p '{"spec":{"hard":{"pods":"3"}}}'
 
 # Option B: reduce replicas (use when 2 was the intended count)
 kubectl scale deployment port-processor --replicas=2 -n number-porting
@@ -162,6 +170,35 @@ kubectl get deploy port-processor -n number-porting
 kubectl get events -n number-porting --sort-by='.lastTimestamp' | tail -5
 # Should now show SuccessfulCreate, not FailedCreate
 ```
+
+<details>
+<summary>📖 Going deeper: the ReplicaSet didn't heal — what now?<sup><a href="https://kubernetes.io/docs/concepts/workloads/controllers/replicaset/">[3]</a></sup></summary>
+
+A common gotcha after fixing the quota: you patch `hard: pods: "3"`, you confirm the new value with `kubectl get resourcequota`, and the deployment is **still** stuck at `READY 2/3`. Fresh events still show `limited: pods=2`.
+
+Two things to check:
+
+1. **Is the event actually fresh?** Sort by `lastTimestamp` and look at the timestamp on the latest `FailedCreate`. If it's minutes old, it's stale — the message text was frozen when the event fired and isn't re-evaluated. Events stick around for ~1 hour by default.
+
+2. **Is the ReplicaSet on its backoff timer?** If spacing between `FailedCreate` events looks like `30s → 1m → 2m → 4m → 8m`, the ReplicaSet controller is doing exponential backoff on pod creation. It doesn't watch the quota; it's just waiting for its next retry window. The deployment can sit at 2/3 for ~15 minutes before the controller tries again on its own.
+
+Three nudges, in order of cleanliness:
+
+```bash
+# A. Rollout restart — creates a NEW ReplicaSet with zero backoff history.
+kubectl rollout restart deployment/port-processor -n number-porting
+
+# B. Scale-down/scale-up — resets the gap to 0, forces a fresh evaluation.
+kubectl scale deploy/port-processor --replicas=2 -n number-porting && \
+kubectl scale deploy/port-processor --replicas=3 -n number-porting
+
+# C. Delete a healthy pod — the RS reconciles on the delete (no backoff path).
+kubectl delete pod -n number-porting -l app=port-processor --limit=1
+```
+
+The teaching point: **fixing the root cause doesn't always heal the workload automatically.** Controllers with backoff need a kick. This is one of the most common reasons `kubectl rollout restart` exists in an SRE's muscle memory — it's not just for picking up new ConfigMap values, it's also for breaking controllers out of failure-retry loops after you've removed the underlying obstacle.
+
+</details>
 
 **What this scenario tests:**
 

@@ -9,17 +9,21 @@ In a real incident with no other context, either gets the alert to clear. The ch
 
 ## Raise the quota
 
+Raising to **3** — exactly enough to satisfy the Deployment, no slack. (Adding headroom like `5` is a judgment call; in production you'd justify the bump via capacity review. For triage, match the actual demand.)
+
 ```bash
 kubectl patch resourcequota pod-limit -n number-porting --type=merge \
-  -p '{"spec":{"hard":{"pods":"5"}}}'
+  -p '{"spec":{"hard":{"pods":"3"}}}'
 ```{{exec}}
 
 Or with `kubectl edit`:
 
 ```bash
 kubectl edit resourcequota pod-limit -n number-porting
-# change spec.hard.pods from "2" to "5"
+# change spec.hard.pods from "2" to "3"
 ```
+
+> ⚠️ `kubectl edit` opens both `spec` and `status`. Change **`spec.hard.pods`** — `status.hard.pods` is controller-managed and edits to it get reverted within a second. The same `spec` (yours) / `status` (controller's) split applies to every Kubernetes object.
 
 ## Watch the third pod schedule
 

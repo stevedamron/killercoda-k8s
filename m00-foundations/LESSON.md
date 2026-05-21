@@ -235,12 +235,14 @@ This is why GitOps tools that own a manifest end-to-end (Flux, Argo CD) avoid mo
 
 ## Hands-on
 
-The M00 module has two scenarios. Each is a separate Killercoda environment provisioned with the full Polyphone fleet.
+The M00 module has four scenarios. Each is a separate Killercoda environment provisioned with the full Polyphone fleet. Work them in order — each one stresses a different instinct from this lesson.
 
-- **`baseline/`** — A guided tour of a healthy cluster. Three steps: cluster anatomy, the Polyphone fleet, the diagnostic loop applied to a healthy workload.
-- **`breakfix-01-context-blindness/`** — An alert fires with no namespace hint. Use cluster-wide situational awareness to find the broken workload and fix it.
+- **`baseline/`** — A guided tour of a healthy cluster. Three steps: cluster anatomy, the Polyphone fleet, the diagnostic loop applied to a healthy workload. No fix required; the point is to internalize the pattern.
+- **`breakfix-01-context-blindness/`** — An alert fires with no namespace hint. Tests the `kubectl get pods -A` instinct: when you don't know where a problem lives, scan cluster-wide *before* zooming in.
+- **`breakfix-02-event-only-failure/`** — A Deployment is short a replica, but every existing Pod looks fine and `describe pod` shows nothing. Tests the climb-the-owner-chain instinct: when the Pod-level loop comes up empty, the event lives on the controller that tried (and failed) to create the Pod.
+- **`breakfix-03-namespace-blindness/`** — `kubectl get pods` returns "No resources found." It looks like the cluster is empty. Tests the suspect-your-view-first instinct: read the error message, run `-A`, check `kubectl config view --minify` before assuming the cluster is broken.
 
-After attempting `breakfix-01`, check yourself against `ANSWER-KEY.md` — it walks through the canonical diagnostic path and calls out the instincts the scenario tests.
+After each scenario, check yourself against `ANSWER-KEY.md` — it walks through the canonical diagnostic path, names the instinct under test, and contrasts the production fix (GitOps source of truth) with the immediate triage fix.
 
 ## Common failure modes
 

@@ -65,4 +65,20 @@ The same `FailedCreate` event surfaces in seconds. No need to climb the owner ch
 kubectl get resourcequota -n number-porting
 ```{{exec}}
 
-`USED 2/2 HARD 2`. The quota is the constraint. Move to step 2.
+```text
+NAME        REQUEST     LIMIT   AGE
+pod-limit   pods: 2/2           ...
+```
+
+The `pods: 2/2` in the REQUEST column reads as `used/hard` — the namespace is already at its pod ceiling. For the full breakdown:
+
+```bash
+kubectl describe resourcequota pod-limit -n number-porting
+```{{exec}}
+
+```text
+Resource  Used  Hard
+pods      2     2
+```
+
+The quota is the constraint. Move to step 2.

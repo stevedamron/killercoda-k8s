@@ -26,8 +26,8 @@ You'll see (among others):
 | `kube-apiserver-*`        | The only thing that talks to etcd. Every client talks to this.|
 | `kube-controller-manager-*` | Runs the built-in controllers (Deployment, ReplicaSet, etc.) |
 | `kube-scheduler-*`        | Decides which node each new pod runs on                       |
-| `kube-proxy-*`            | One per node. Programs iptables/IPVS for Services             |
 | `coredns-*`               | Cluster DNS. Resolves `<svc>.<ns>.svc.cluster.local`.         |
+| `kube-proxy-*` *(optional)* | One per node. Programs iptables/IPVS for Services. Some setups (e.g. Cilium with kube-proxy replacement) skip it. |
 
 These are not Polyphone workloads — they are the cluster itself. When the cluster misbehaves, this is the namespace to check first.
 
@@ -50,6 +50,6 @@ You see the raw JSON the API server returns. `kubectl get namespaces` does exact
 kubectl get nodes && kubectl get pods -n kube-system --field-selector=status.phase=Running | wc -l
 ```{{exec}}
 
-You should see 2 nodes Ready and at least ~7 running pods in `kube-system`.
+You should see 2 nodes Ready and ~6 running pods in `kube-system` (etcd, kube-apiserver, kube-controller-manager, kube-scheduler, and 2× coredns at minimum — plus kube-proxy DaemonSet pods if your setup uses it).
 
 Move on to step 2.
