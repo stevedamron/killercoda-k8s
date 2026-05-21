@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "Waiting for the Polyphone baseline + scenario mutation..."
+echo "Waiting for the Polyphone baseline to finish spinning up..."
 echo ""
 
 while [ ! -f /tmp/.setup-complete ]; do
@@ -9,13 +9,16 @@ while [ ! -f /tmp/.setup-complete ]; do
 done
 echo ""
 echo ""
-echo "Cluster is up. Alert fires:"
+echo "Cluster is up. You're paged:"
 echo ""
-echo "  +-----------------------------------------------+"
-echo "  | ALERT: Polyphone fleet -- workload degraded   |"
-echo "  | namespace: (not reported)                     |"
-echo "  | workload:  (not reported)                     |"
-echo "  +-----------------------------------------------+"
+echo "  +-----------------------------------------------------+"
+echo "  | ALERT: Polyphone fleet -- multiple workloads        |"
+echo "  | degraded across namespaces                          |"
+echo "  +-----------------------------------------------------+"
 echo ""
-echo "What's your first command?"
+echo "You run:"
+echo "  $ kubectl get pods"
+echo "  No resources found in kube-public namespace."
+echo ""
+echo "Is the cluster broken? Or is something else going on?"
 echo ""

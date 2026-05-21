@@ -1,6 +1,6 @@
 {
-  "title": "M00 — Break/fix 02: Event-Only Failure",
-  "description": "A Deployment in the Polyphone fleet is short a replica. The pods that exist are fine. The answer isn't on any Pod — practice climbing the owner chain.",
+  "title": "M00 — Break/fix 02: Namespace Blindness",
+  "description": "Something on the Polyphone cluster is broken. You don't know where. Use cluster-wide situational awareness to find and fix it.",
   "details": {
     "intro": {
       "text": "intro.md",
@@ -8,7 +8,7 @@
       "foreground": "foreground.sh"
     },
     "steps": [
-      { "title": "Find the missing replica", "text": "step1/text.md" },
+      { "title": "Find the broken workload", "text": "step1/text.md" },
       { "title": "Fix it and verify", "text": "step2/text.md", "verify": "step2/verify.sh" }
     ],
     "finish": { "text": "finish.md" }

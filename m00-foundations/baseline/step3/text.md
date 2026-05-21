@@ -1,88 +1,76 @@
-# Step 3 — The diagnostic loop
+# Step 3 — Common kubectl idioms
 
-Four commands, in order, will solve most problems you encounter in this curriculum:
+Before the diagnostic loop, get fluent in the commands you'll actually type day-to-day. This step is a fluency drill — try each command and read what it does. Nothing is broken; the cluster is the same healthy fleet you toured in step 2.
 
-```text
-get → describe → events → logs
-```
+## The eight verbs you'll use 90% of the time
 
-Each tells you something the previous one can't. You're going to walk through them against a healthy workload — `portal-ui` in `admin-portal` — so you know what each one looks like when nothing is wrong. Later modules drop you into broken environments where you'll run the same loop without the safety net.
+| Verb | What it does | When you reach for it |
+|---|---|---|
+| `get` | List objects | "What's there?" — always step 1. |
+| `describe` | Pretty-print one object + its recent events | "What happened to this specific thing?" |
+| `logs` | Stream a container's stdout/stderr | "What does the app think?" |
+| `exec` | Run a command inside a running container | "I need to inspect/test from inside." |
+| `apply` | Create or update from a manifest | The GitOps verb. Use this 95% of the time when changing state. |
+| `edit` | Open the live object in `$EDITOR`, save to apply | Quick interactive tweak. **Triage tool**, not GitOps. |
+| `delete` | Remove an object (cascades to dependents by default) | Cleanup. |
+| `port-forward` | Tunnel a local port to a Pod or Service | Test a service without exposing it. |
 
-## 1. get — what's there?
+Try the read-only verbs on the healthy fleet:
 
 ```bash
 kubectl get pods -n admin-portal
 ```{{exec}}
 
-You should see two `portal-ui-*` pods, both `Running`. The `READY` column should show `1/1`, the `RESTARTS` column should show `0`.
-
-Add `-o wide` for more:
-
 ```bash
-kubectl get pods -n admin-portal -o wide
+kubectl describe deployment portal-ui -n admin-portal | head -40
 ```{{exec}}
 
-Now you see which node each pod is on, and its pod IP.
-
-## 2. describe — what does the API server know?
-
 ```bash
-kubectl describe pod -n admin-portal -l app=portal-ui
+kubectl logs -n admin-portal -l app=portal-ui --tail=5
 ```{{exec}}
 
-`describe` is the most information-dense command in the kit. It shows:
-
-- All of `metadata` (labels, annotations, owner references)
-- All of `spec` (image, ports, volumes, resources)
-- All of `status` (current conditions, container state, recent restart reasons)
-- **Events** filtered to this specific pod — every controller decision that touched it
-
-For a healthy pod, the Events section should show a clean sequence: `Scheduled` → `Pulled` → `Created` → `Started`. When things go wrong, this section is the first place to look.
-
-## 3. events — what's happening in the neighborhood?
-
-`describe` shows you events for *one* object. `get events` shows you events for an entire namespace — including events on objects you wouldn't have thought to describe:
-
 ```bash
-kubectl get events -n admin-portal --sort-by='.lastTimestamp'
+kubectl exec -n admin-portal deploy/portal-ui -- hostname
 ```{{exec}}
 
-For a healthy namespace this is sparse. For a broken one this is where the answer often is — especially when a ReplicaSet, Service, or PVC has the event the Pod doesn't.
+## Flags you'll combine endlessly
 
-Cluster-wide:
+| Flag | What it does |
+|---|---|
+| `-n <ns>` | Scope to a namespace |
+| `-A` (alias `--all-namespaces`) | All namespaces — your fleet-wide instinct |
+| `-l key=value` | Filter by label selector (`-l plane=media`) |
+| `-o wide` | Wide output — adds Node, IP, etc. |
+| `-o yaml` / `-o json` | Full object as YAML / JSON |
+| `--watch` (or `-w`) | Stream changes live |
+| `-f` (with logs) | Follow / tail logs in real time |
+| `-c <container>` | Pick a specific container in a multi-container Pod |
+| `--previous` (with logs) | Last terminated container — for after-crash forensics |
+
+Real combinations you'll actually type:
 
 ```bash
-kubectl get events -A --sort-by='.lastTimestamp' | tail -20
+# What's running on the media plane, with node + IP + age
+kubectl get pods -A -o wide -l plane=media
 ```{{exec}}
 
-This is the command for "something is broken somewhere on the cluster, I don't know where." Bookmark it.
-
-## 4. logs — what does the application say?
-
 ```bash
-POD=$(kubectl get pod -n admin-portal -l app=portal-ui -o jsonpath='{.items[0].metadata.name}')
-kubectl logs -n admin-portal $POD
+# Full object as YAML — what kubectl describe couldn't show you
+kubectl get deployment portal-ui -n admin-portal -o yaml | head -30
 ```{{exec}}
 
-`portal-ui` is just an `nginx` placeholder so the logs are spartan. For a real app this is where you'd see the application's own view of itself: which requests are succeeding, which dependencies are reachable.
-
-Useful variants:
-
 ```bash
-kubectl logs -n admin-portal -l app=portal-ui --tail=20    # logs across all matching pods
-kubectl logs -n admin-portal $POD --previous              # last terminated container (after a crash)
-kubectl logs -n admin-portal $POD -f                      # follow live
-```
+# Watch pods in admin-portal for 5 seconds (no changes happening; just see the format)
+timeout 5 kubectl get pods -n admin-portal --watch || true
+```{{exec}}
 
-## The pattern
+## `edit` vs `apply` — what's the difference
 
-You just did the canonical diagnostic loop on a healthy workload. Whenever you suspect something is wrong:
+- **`kubectl edit`** opens the live object in your `$EDITOR`. Save and quit; the change is applied immediately. **Triage only** — you've now bypassed GitOps and your change will drift back the next time the source-of-truth reconciles.
+- **`kubectl apply -f file.yaml`** is declarative. It's what CI/CD systems (Flux, Argo) run. If you control the manifest in git, this is the verb.
 
-1. `kubectl get pods -n <ns>` — is it even there? what's its phase?
-2. `kubectl describe pod <name> -n <ns>` — what happened to it?
-3. `kubectl get events -n <ns> --sort-by='.lastTimestamp'` — what's happening around it?
-4. `kubectl logs <pod> -n <ns>` (+ `--previous` if it crashed) — what does it say?
+For lab work, `edit` is fast. For anything that should persist past the next reconciliation, change the manifest in git and let `apply` (or your GitOps controller) carry it.
 
-The next scenario in this module (`breakfix-01`) drops you into a cluster where something is broken and you have no namespace hint. Use this loop. Start with `kubectl get pods -A`.
+> Day-to-day rule of thumb: read-only commands (`get`, `describe`, `logs`) are safe anywhere. State-changing commands (`apply`, `edit`, `delete`, `scale`, `patch`, `rollout restart`) need a deliberate "am I in the right context?" check first. See `breakfix-01` for what happens when you skip that check.
 
-You're done with the baseline tour. See `finish.md`.
+Move on to step 4.

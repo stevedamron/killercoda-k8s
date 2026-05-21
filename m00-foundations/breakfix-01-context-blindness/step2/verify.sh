@@ -1,10 +1,10 @@
 #!/bin/bash
-# Checks: metrics-aggregator image is restored to nginx:1.25 and at least one pod is Running.
-IMAGE=$(kubectl get deployment metrics-aggregator -n analytics -o jsonpath='{.spec.template.spec.containers[0].image}' 2>/dev/null)
-[ "$IMAGE" = "nginx:1.25" ] || { echo "Deployment image is '$IMAGE', expected 'nginx:1.25'" >&2; exit 1; }
+# Checks: current kubeconfig default namespace is no longer kube-public.
+# Accepts any value other than kube-public (default, admin-portal, etc.).
+CURRENT_NS=$(kubectl config view --minify -o jsonpath='{.contexts[0].context.namespace}' 2>/dev/null)
+[ "$CURRENT_NS" != "kube-public" ] || { echo "Default namespace is still 'kube-public'. Set to anything else (e.g., 'default')." >&2; exit 1; }
 
-RUNNING=$(kubectl get pods -n analytics -l app=metrics-aggregator --no-headers 2>/dev/null | awk '$3 == "Running"' | wc -l)
-[ "$RUNNING" -ge 1 ] || { echo "Expected 1+ Running pod, got $RUNNING (image fix may still be rolling out)" >&2; exit 1; }
-
-echo "✓ Fix applied: image=$IMAGE, $RUNNING pod(s) Running"
+# If unset, also accept (means context-level default = "default" namespace)
+DISPLAY="${CURRENT_NS:-default}"
+echo "✓ Default namespace corrected: $DISPLAY"
 exit 0

@@ -1,4 +1,4 @@
-# M00 — Break/fix 02: Event-Only Failure
+# M00 — Break/fix 03: Event-Only Failure
 
 > Pre-req: completed M00 baseline tour, or comfortable with the `get → describe → events → logs` loop.
 

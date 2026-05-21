@@ -1,9 +1,9 @@
 # Done
 
-You triaged a cluster-wide alert with no namespace hint, found the broken workload using `kubectl get pods -A` (or `kubectl get events -A --sort-by='.lastTimestamp'`), and recovered it with `kubectl set image`. That instinct — pivot to cluster-wide first, zoom in second — is the single most important habit M00 wants to give you.
+You confirmed the cluster was healthy before assuming it was broken, identified that your kubeconfig default namespace was scoped to `kube-public`, and corrected it. The load-bearing skill: **suspect your own setup before the cluster.**
 
 **Next:**
 
-- For the *why*, see [LESSON.md](../LESSON.md) — the diagnostic loop section in particular.
-- Two more M00 break/fix scenarios are coming: `breakfix-02` (event-only failures), `breakfix-03` (wrong context vs wrong namespace).
-- When you're ready to move on, **M01 (Workloads I — Pods, Deployments, ReplicaSets)** is the next module on the linear path.
+- For the canonical walkthrough and self-grading questions, see [`ANSWER-KEY.md`](../ANSWER-KEY.md).
+- For the *why* (contexts, namespaces, the resource model), see [`LESSON.md`](../LESSON.md).
+- Two more M00 break/fix scenarios await: **`breakfix-02-namespace-blindness`** (alert with no namespace hint — pivot to cluster-wide) and **`breakfix-03-event-only-failure`** (climb the owner chain when Pod-level checks come up empty).

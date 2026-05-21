@@ -1,51 +1,52 @@
-# Step 1 — Find the broken workload
+# Step 1 — Diagnose your view
 
-The alert told you something is broken but not where. Your first move sets the tone for the entire incident.
+Before assuming the cluster is broken, take 10 seconds to confirm where you're looking.
 
-Bad first move: opening namespaces one at a time hoping you guess right. That doesn't scale, and it feels productive while wasting minutes.
-
-Good first move: ask the cluster what it knows, cluster-wide.
-
-## Try the cluster-wide scan
+## Try first: pivot to cluster-wide
 
 ```bash
 kubectl get pods -A
 ```{{exec}}
 
-Scan the `STATUS` column. Most pods should be `Running`. One workload will stand out — pods in `ImagePullBackOff` or `ErrImagePull` (the kubelet tried to fetch the container image, the registry said no, and the kubelet is now backing off retries with exponential delay).
+The cluster has plenty of pods running across the Polyphone namespaces, `kube-system`, `local-path-storage`, and others. The cluster is fine.
 
-## Alternative: sort events globally
-
-If many things are wrong (or you want a chronological view), events are often the fastest path:
-
-```bash
-kubectl get events -A --sort-by='.lastTimestamp' | tail -30
-```{{exec}}
-
-Recent failures bubble to the bottom. You should see `Failed to pull image` events on the broken workload — even before any pod has settled into `ImagePullBackOff`.
-
-## Zoom in
-
-Once you've located the namespace and workload, run the next step of the diagnostic loop:
-
-```bash
-# (Substitute the namespace and label you found above.)
-kubectl describe pod -n analytics -l app=metrics-aggregator
-```{{exec}}
-
-Look at the `Events:` section at the bottom. You'll see something like:
+So why did `kubectl get pods` return nothing? Read the error message again:
 
 ```text
-  Warning  Failed  ...  Failed to pull image "nginx:doesnotexist-1.25-foobar":
-                       ... not found
+No resources found in kube-public namespace.
 ```
 
-That's your root cause: the Deployment is referencing an image that doesn't exist. Most likely a typo or a bad tag pushed in an earlier change.
+`kubectl` is scoping the query to `kube-public`. That namespace has no Polyphone workloads (Kubernetes uses it for cluster-info ConfigMaps, nothing else). The cluster isn't broken — your default namespace is set wrong.
 
-## Verify what you found
+## Confirm where you are
 
 ```bash
-kubectl get deployment metrics-aggregator -n analytics -o jsonpath='{.spec.template.spec.containers[0].image}'; echo
+kubectl config current-context
 ```{{exec}}
 
-You should see the bad image string. Move to step 2.
+This tells you which **cluster + user + namespace** combo `kubectl` is pointed at.
+
+```bash
+kubectl config view --minify
+```{{exec}}
+
+`--minify` shows only the active context's details. Look at the `namespace:` line under `context:`. You'll see `namespace: kube-public`.
+
+```bash
+kubectl config get-contexts
+```{{exec}}
+
+The column `NAMESPACE` shows the default namespace for each context. The active one (marked with `*`) is `kube-public`.
+
+The cluster is fine. The **kubeconfig** (`~/.kube/config` — the file `kubectl` reads to know which cluster, which credentials, and what default namespace to use) says "by default, scope every query to `kube-public`". That's why your unscoped `kubectl get pods` returned nothing.
+
+## Why this matters
+
+This is the most common false-alarm in a multi-cluster shop. Someone:
+
+- Switched namespaces with `kubens` and forgot to switch back
+- Ran a command earlier with `kubectl config set-context --current --namespace=...` and didn't reset
+- Was handed a kubeconfig pre-scoped to an unusual namespace
+- Is on the wrong cluster entirely (different `current-context`)
+
+The fix is trivial. The instinct — **suspect your own setup before the cluster** — is the lesson. Move to step 2.

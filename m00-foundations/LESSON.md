@@ -174,6 +174,81 @@ When a cluster says "Unauthorized" and the cert hasn't expired, the most common 
 
 </details>
 
+### Common kubectl idioms — what you'll type day-to-day
+
+Eight verbs plus a handful of flags will carry you through 90% of routine work. Drilling them in `baseline/step3` builds the muscle memory; this section is the canonical reference.
+
+| Verb | Use |
+|---|---|
+| `get` | List objects — "what's there?" |
+| `describe` | Pretty-print one object + its recent events |
+| `logs` | Stream a container's stdout/stderr |
+| `exec` | Run a command inside a running container |
+| `apply` | Create or update from a manifest — the GitOps verb |
+| `edit` | Open the live object in your editor, save to apply — triage only |
+| `delete` | Remove an object (cascades to dependents by default) |
+| `port-forward` | Tunnel a local port to a Pod or Service |
+
+The flags you'll combine endlessly: `-n <ns>` (scope), `-A` (all namespaces), `-l key=value` (label selector), `-o wide` / `-o yaml` / `-o json` (output formats), `--watch` (stream changes), `-f` (follow logs in real time), `-c <container>` (container in multi-container Pods), `--previous` (last terminated container — for after-crash forensics).
+
+**`edit` vs `apply` — the difference that matters:**
+
+- **`kubectl edit`** is the triage verb. Opens the live object; your save applies it immediately; you've now diverged from your GitOps source of truth. The change will drift back the next time the source reconciles. Use to stop bleeding, not to make persistent changes.
+- **`kubectl apply -f file.yaml`** is the declarative verb. Same operation CI/CD systems (Flux, Argo) run. It's a three-way merge against the previous applied state, so fields you didn't touch aren't overwritten. The right pattern: change the manifest in git → `apply` (or let the GitOps controller carry it).
+
+Rule of thumb: read-only commands (`get`, `describe`, `logs`) are safe anywhere. State-changing commands (`apply`, `edit`, `delete`, `scale`, `patch`, `rollout restart`) need an "am I in the right context?" check first. `breakfix-01` shows what happens when you skip that check.
+
+### Reading the API: jsonpath, custom-columns, jq
+
+Every Kubernetes object is JSON under the hood — `kubectl get -o yaml` is just JSON pretty-printed as YAML. Three tools let you grab specific fields without grep-ing through human-formatted output.
+
+**`-o jsonpath` — built into kubectl, good for one field:**
+
+```bash
+kubectl get deployment portal-ui -n admin-portal \
+  -o jsonpath='{.spec.template.spec.containers[0].image}'
+```
+
+The `{range .items[*]}…{end}` template iterates over a list and formats each element. It's the most useful pattern in jsonpath; learn it.
+
+**`-o custom-columns` — when you want a table:**
+
+```bash
+kubectl get pods -A -o custom-columns=NS:.metadata.namespace,NAME:.metadata.name,NODE:.spec.nodeName
+```
+
+Each column is `HEADER:.path.to.field`, comma-separated. Useful for ad-hoc reports.
+
+**`jq` — when jsonpath isn't enough:**
+
+```bash
+kubectl get pods -A -o json | \
+  jq -r '.items[] | select(.spec.nodeName == "node01") | .metadata.namespace + "/" + .metadata.name'
+```
+
+Where jq beats jsonpath: complex filters (`select(...)`), transformations (`map`, `group_by`, `to_entries`), and string composition. Where jsonpath beats jq: no extra binary, simpler one-liners, fewer quote-escaping headaches.
+
+| You want to… | Reach for |
+|---|---|
+| Grab one field | `-o jsonpath` |
+| Make a quick table | `-o custom-columns` |
+| Filter / transform / join | `\| jq` |
+
+> Resist 200-character one-liners. If your query has more than one `select` or one transformation, save it as a bash function or script. Long inline queries are write-only — neither you nor your teammate will read them six months later.
+
+<details>
+<summary>📖 Going deeper: <code>-l</code> vs <code>--field-selector</code> vs <code>jq</code> — three ways to filter</summary>
+
+Three filtering mechanisms, with very different cost:
+
+- **`-l key=value`** (label selector) — the cheapest. Labels are indexed; the API server filters server-side and returns only matching objects. Use this whenever you can.
+- **`--field-selector status.phase=Pending`** — also server-side but limited. Only a small set of fields per resource are selectable (Kubernetes doesn't index everything). The most useful: `metadata.name`, `metadata.namespace`, `spec.nodeName`, `status.phase`.
+- **`jq '.items[] | select(...)'`** — client-side. You fetched ALL objects; jq filtered after the fact. Slow on large clusters and burns API server time, but works for any condition.
+
+Rule of thumb: prefer label selectors → field selectors → jq, in that order. If you find yourself jq-filtering by something that could be a label, add the label.
+
+</details>
+
 ### The reconciliation loop
 
 You don't create Pods directly (you can, but you don't). You create higher-level objects — Deployments, StatefulSets, DaemonSets — and controllers create Pods for you. The Deployment controller watches Deployments. The ReplicaSet controller watches ReplicaSets. The scheduler watches Pods with no node assignment.
@@ -192,7 +267,7 @@ flowchart TB
     r -->|creates one Pod<br/>per replica| p[Pods<br/>the actual workloads]
 ```
 
-This **owner chain** matters for diagnosis. When a controller fails to create something, the failure event attaches to the *creator*, not to the thing that wasn't created. That's why `kubectl describe pod` shows nothing for a Pod that never got created — you must `kubectl describe rs` or `kubectl get events -n <ns>` instead. You'll exercise this exact instinct in `breakfix-02`. The same shape applies to other owner chains you'll meet later (`CronJob → Job → Pod`, `PVC → PV → StorageClass`).
+This **owner chain** matters for diagnosis. When a controller fails to create something, the failure event attaches to the *creator*, not to the thing that wasn't created. That's why `kubectl describe pod` shows nothing for a Pod that never got created — you must `kubectl describe rs` or `kubectl get events -n <ns>` instead. You'll exercise this exact instinct in `breakfix-03`. The same shape applies to other owner chains you'll meet later (`CronJob → Job → Pod`, `PVC → PV → StorageClass`).
 
 A Deployment is a contract: "always have N replicas of this Pod template running." A controller reads the spec ("3 replicas"), reads the status ("2 ready"), and acts ("create one more"). Delete a Pod and the ReplicaSet controller creates a new one within seconds. Change the template and the Deployment controller runs a rolling replacement.
 
@@ -257,7 +332,7 @@ Two surprises you'll hit eventually:
 - **Conflict errors** when another field manager (a different tool, a controller, or a previous `kubectl edit`) owns a field you're trying to set. The fix is either `--force-conflicts` (you take ownership) or coordinating with whoever owns the field.
 - **Disappearing fields** when you apply a YAML that omits a field someone else (or a controller) added. Server-side apply remembers who set what; if you used to set it, removing it from your YAML deletes it from the object.
 
-This is why GitOps tools that own a manifest end-to-end (Flux, Argo CD) avoid most of these — they're the single field manager. You'll meet that pattern in M13.
+This is why GitOps tools that own a manifest end-to-end (Flux, Argo CD) avoid most of these — they're the single field manager. You'll meet that pattern in M18.
 
 </details>
 
@@ -265,10 +340,10 @@ This is why GitOps tools that own a manifest end-to-end (Flux, Argo CD) avoid mo
 
 The M00 module has four scenarios. Each is a separate Killercoda environment provisioned with the full Polyphone fleet. Work them in order — each one stresses a different instinct from this lesson.
 
-- **`baseline/`** — A guided tour of a healthy cluster. Three steps: cluster anatomy, the Polyphone fleet, the diagnostic loop applied to a healthy workload. No fix required; the point is to internalize the pattern.
-- **`breakfix-01-context-blindness/`** — An alert fires with no namespace hint. Tests the `kubectl get pods -A` instinct: when you don't know where a problem lives, scan cluster-wide *before* zooming in.
-- **`breakfix-02-event-only-failure/`** — A Deployment is short a replica, but every existing Pod looks fine and `describe pod` shows nothing. Tests the climb-the-owner-chain instinct: when the Pod-level loop comes up empty, the event lives on the controller that tried (and failed) to create the Pod.
-- **`breakfix-03-namespace-blindness/`** — `kubectl get pods` returns "No resources found." It looks like the cluster is empty. Tests the suspect-your-view-first instinct: read the error message, run `-A`, check `kubectl config view --minify` before assuming the cluster is broken.
+- **`baseline/`** — A guided tour of a healthy cluster. Cluster anatomy, the Polyphone fleet, common `kubectl` idioms, JSON unpacking with jsonpath/jq, and the diagnostic loop applied to a healthy workload. No fix required; the point is to internalize the patterns.
+- **`breakfix-01-context-blindness/`** — `kubectl get pods` returns "No resources found." It looks like the cluster is empty. Tests the suspect-your-view-first instinct: read the error message, run `-A`, check `kubectl config view --minify` before assuming the cluster is broken. The simplest instinct, taught first.
+- **`breakfix-02-namespace-blindness/`** — An alert fires with no namespace hint. Tests the `kubectl get pods -A` instinct: when you don't know where a problem lives, scan cluster-wide *before* zooming in.
+- **`breakfix-03-event-only-failure/`** — A Deployment is short a replica, but every existing Pod looks fine and `describe pod` shows nothing. Tests the climb-the-owner-chain instinct: when the Pod-level loop comes up empty, the event lives on the controller that tried (and failed) to create the Pod.
 
 After each scenario, check yourself against `ANSWER-KEY.md` — it walks through the canonical diagnostic path, names the instinct under test, and contrasts the production fix (GitOps source of truth) with the immediate triage fix.
 

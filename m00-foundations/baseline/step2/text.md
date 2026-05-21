@@ -11,7 +11,7 @@ Polyphone is a real-time communications platform. Its workloads are organized by
 | **control**   | Provisioning, routing, CDR, analytics, number porting  | `provisioning`, `call-routing`, `cdr-storage`, `analytics`, `number-porting` |
 | **admin**     | Operator-facing portal                                 | `admin-portal`                              |
 
-Every workload carries a `plane=...` **label** — a `key=value` tag attached to an object. **Selectors** (e.g., `-l plane=media`) filter on labels; this is how Services find their backing Pods, how Deployments pick which Pods they own, and how you grep the cluster. You'll use the `plane` label a lot in later modules (notably M10 — NetworkPolicies).
+Every workload carries a `plane=...` **label** — a `key=value` tag attached to an object. **Selectors** (e.g., `-l plane=media`) filter on labels; this is how Services find their backing Pods, how Deployments pick which Pods they own, and how you grep the cluster. You'll use the `plane` label a lot in later modules (notably M14 — NetworkPolicies).
 
 ## See the whole fleet at once
 

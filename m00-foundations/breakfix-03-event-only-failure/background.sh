@@ -648,7 +648,7 @@ spec:
 EOF
 
 # number-porting: port-processor with ResourceQuota
-# >>> breakfix-02 mutation: tightened quota + bumped replicas. The Deployment
+# >>> breakfix-03 mutation: tightened quota + bumped replicas. The Deployment
 #     wants 3 pods; the namespace quota allows only 2. The 3rd pod never gets
 #     created — the failure event lives on the ReplicaSet, NOT on any Pod.
 #     Diagnostic loop teaching: pod-level checks show nothing wrong; the
@@ -684,7 +684,7 @@ spec:
             requests: { cpu: 25m, memory: 32Mi }
             limits:   { cpu: 100m, memory: 64Mi }
 EOF
-# <<< breakfix-02 mutation ends
+# <<< breakfix-03 mutation ends
 
 # ---------------------------------------------------------------------------
 # Wait for the fleet to come up

@@ -623,6 +623,11 @@ spec:
 EOF
 
 # analytics: metrics-aggregator
+# >>> breakfix-02 mutation: image tag doesn't exist -> ImagePullBackOff.
+#     The learner is told "something is broken somewhere" with no hint, and
+#     must scan cluster-wide (kubectl get pods -A / kubectl get events -A)
+#     to find it. Inlined here (not a post-creation patch) so the mutation
+#     is guaranteed to apply regardless of background-script timing.
 kubectl create namespace analytics --dry-run=client -o yaml | kubectl apply -f - >/dev/null
 cat <<'EOF' | kubectl apply -f -
 apiVersion: apps/v1
@@ -640,12 +645,13 @@ spec:
     spec:
       containers:
         - name: app
-          image: nginx:1.25
+          image: nginx:doesnotexist-1.25-foobar   # MUTATED (baseline: nginx:1.25)
           ports: [{ containerPort: 80 }]
           resources:
             requests: { cpu: 50m, memory: 64Mi }
             limits:   { cpu: 200m, memory: 128Mi }
 EOF
+# <<< breakfix-02 mutation ends
 
 # number-porting: port-processor with ResourceQuota
 kubectl create namespace number-porting --dry-run=client -o yaml | kubectl apply -f - >/dev/null
@@ -684,17 +690,12 @@ EOF
 # Wait for the fleet to come up
 # ---------------------------------------------------------------------------
 
+# Wait for the healthy fleet to come up. Keep timeouts short — Killercoda has
+# its own cap on background-script runtime, and metrics-aggregator will never
+# become Available anyway (it's intentionally broken).
 kubectl wait --for=condition=Available deployment --all -A --timeout=120s >/dev/null 2>&1
 for ns in media signaling app-services edge; do
   kubectl wait --for=condition=Ready pod -l plane -n "$ns" --timeout=60s >/dev/null 2>&1
 done
-
-# >>> breakfix-03 mutation: set the default namespace to kube-public.
-#     Cluster is fully healthy; the learner's *view* of it is broken.
-#     `kubectl get pods` returns "No resources found" because they're
-#     scoped to kube-public, which is empty. Tests the contexts/namespaces
-#     instinct — "suspect your own setup before the cluster."
-kubectl config set-context --current --namespace=kube-public >/dev/null 2>&1
-# <<< breakfix-03 mutation ends
 
 touch /tmp/.setup-complete

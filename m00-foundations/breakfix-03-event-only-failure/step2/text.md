@@ -67,4 +67,4 @@ For the full canonical walkthrough and self-grading, see `ANSWER-KEY.md`.
 
 Either way, the `kubectl patch` you just ran is a triage step — not a fix. Flux will re-apply the original manifest on its next reconciliation and you'll be back at READY 2/3 unless the gitops source matches your intent.
 
-You're done with breakfix-02. See `finish.md`.
+You're done with breakfix-03. See `finish.md`.
