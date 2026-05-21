@@ -694,7 +694,17 @@ done
 #     `kubectl get pods` returns "No resources found" because they're
 #     scoped to kube-public, which is empty. Tests the contexts/namespaces
 #     instinct — "suspect your own setup before the cluster."
-kubectl config set-context --current --namespace=kube-public >/dev/null 2>&1
+#
+# Load-bearing for this scenario — DO NOT swallow errors here. Verify the
+# change actually took, and fail loudly if not (better than a silently
+# broken lab where the prose says kube-public but kubectl sees `default`).
+kubectl config set-context --current --namespace=kube-public
+GOT=$(kubectl config view --minify -o jsonpath='{.contexts[0].context.namespace}' 2>/dev/null)
+if [ "$GOT" != "kube-public" ]; then
+  echo "FATAL: breakfix-01 mutation failed — kubeconfig namespace is '$GOT', expected 'kube-public'." >&2
+  echo "This scenario cannot proceed. The lab will hang at 'Waiting for setup...'; restart the lab to retry." >&2
+  exit 1
+fi
 # <<< breakfix-01 mutation ends
 
 touch /tmp/.setup-complete
