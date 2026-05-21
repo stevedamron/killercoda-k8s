@@ -176,7 +176,7 @@ When a cluster says "Unauthorized" and the cert hasn't expired, the most common 
 
 ### Common kubectl idioms — what you'll type day-to-day
 
-Eight verbs plus a handful of flags will carry you through 90% of routine work. Drilling them in `baseline/step3` builds the muscle memory; this section is the canonical reference.
+Eight verbs and a handful of flags carry you through 90% of routine work:
 
 | Verb | Use |
 |---|---|
@@ -185,67 +185,36 @@ Eight verbs plus a handful of flags will carry you through 90% of routine work. 
 | `logs` | Stream a container's stdout/stderr |
 | `exec` | Run a command inside a running container |
 | `apply` | Create or update from a manifest — the GitOps verb |
-| `edit` | Open the live object in your editor, save to apply — triage only |
+| `edit` | Open the live object in `$EDITOR`, save to apply — triage only |
 | `delete` | Remove an object (cascades to dependents by default) |
 | `port-forward` | Tunnel a local port to a Pod or Service |
 
-The flags you'll combine endlessly: `-n <ns>` (scope), `-A` (all namespaces), `-l key=value` (label selector), `-o wide` / `-o yaml` / `-o json` (output formats), `--watch` (stream changes), `-f` (follow logs in real time), `-c <container>` (container in multi-container Pods), `--previous` (last terminated container — for after-crash forensics).
+Flags you'll combine endlessly: `-n <ns>`, `-A`, `-l key=value`, `-o wide` / `-o yaml` / `-o json`, `--watch`, `-f` (follow logs), `-c <container>`, `--previous`.
 
-**`edit` vs `apply` — the difference that matters:**
-
-- **`kubectl edit`** is the triage verb. Opens the live object; your save applies it immediately; you've now diverged from your GitOps source of truth. The change will drift back the next time the source reconciles. Use to stop bleeding, not to make persistent changes.
-- **`kubectl apply -f file.yaml`** is the declarative verb. Same operation CI/CD systems (Flux, Argo) run. It's a three-way merge against the previous applied state, so fields you didn't touch aren't overwritten. The right pattern: change the manifest in git → `apply` (or let the GitOps controller carry it).
-
-Rule of thumb: read-only commands (`get`, `describe`, `logs`) are safe anywhere. State-changing commands (`apply`, `edit`, `delete`, `scale`, `patch`, `rollout restart`) need an "am I in the right context?" check first. `breakfix-01` shows what happens when you skip that check.
+**`edit` vs `apply`:** `edit` is triage (opens live object, applies on save, diverges from GitOps); `apply` is declarative (three-way merge against your manifest, same operation Flux/Argo run). Change the manifest in git → `apply` for anything persistent. Read-only commands are safe anywhere; state-changing commands need a context check first — `breakfix-01` shows what happens when you skip it.
 
 ### Reading the API: jsonpath, custom-columns, jq
 
-Every Kubernetes object is JSON under the hood — `kubectl get -o yaml` is just JSON pretty-printed as YAML. Three tools let you grab specific fields without grep-ing through human-formatted output.
+Every Kubernetes object is JSON under the hood. Three tools pull specific fields out:
 
-**`-o jsonpath` — built into kubectl, good for one field:**
+| You want… | Reach for | Example |
+|---|---|---|
+| One field | `-o jsonpath` | `kubectl get deploy foo -o jsonpath='{.spec.replicas}'` |
+| A quick table | `-o custom-columns` | `kubectl get pods -A -o custom-columns=NS:.metadata.namespace,NAME:.metadata.name,NODE:.spec.nodeName` |
+| Filter / transform | `\| jq` | `kubectl get pods -A -o json \| jq '.items[] \| select(.spec.nodeName == "n1")'` |
 
-```bash
-kubectl get deployment portal-ui -n admin-portal \
-  -o jsonpath='{.spec.template.spec.containers[0].image}'
-```
-
-The `{range .items[*]}…{end}` template iterates over a list and formats each element. It's the most useful pattern in jsonpath; learn it.
-
-**`-o custom-columns` — when you want a table:**
-
-```bash
-kubectl get pods -A -o custom-columns=NS:.metadata.namespace,NAME:.metadata.name,NODE:.spec.nodeName
-```
-
-Each column is `HEADER:.path.to.field`, comma-separated. Useful for ad-hoc reports.
-
-**`jq` — when jsonpath isn't enough:**
-
-```bash
-kubectl get pods -A -o json | \
-  jq -r '.items[] | select(.spec.nodeName == "node01") | .metadata.namespace + "/" + .metadata.name'
-```
-
-Where jq beats jsonpath: complex filters (`select(...)`), transformations (`map`, `group_by`, `to_entries`), and string composition. Where jsonpath beats jq: no extra binary, simpler one-liners, fewer quote-escaping headaches.
-
-| You want to… | Reach for |
-|---|---|
-| Grab one field | `-o jsonpath` |
-| Make a quick table | `-o custom-columns` |
-| Filter / transform / join | `\| jq` |
-
-> Resist 200-character one-liners. If your query has more than one `select` or one transformation, save it as a bash function or script. Long inline queries are write-only — neither you nor your teammate will read them six months later.
+jsonpath ships with `kubectl`; jq is the de facto JSON query tool and handles `select`, `map`, `group_by`, and string composition that jsonpath can't. The `{range .items[*]}…{end}` template is the most useful pattern in jsonpath.
 
 <details>
 <summary>📖 Going deeper: <code>-l</code> vs <code>--field-selector</code> vs <code>jq</code> — three ways to filter</summary>
 
-Three filtering mechanisms, with very different cost:
+Three filtering mechanisms with very different cost:
 
-- **`-l key=value`** (label selector) — the cheapest. Labels are indexed; the API server filters server-side and returns only matching objects. Use this whenever you can.
-- **`--field-selector status.phase=Pending`** — also server-side but limited. Only a small set of fields per resource are selectable (Kubernetes doesn't index everything). The most useful: `metadata.name`, `metadata.namespace`, `spec.nodeName`, `status.phase`.
-- **`jq '.items[] | select(...)'`** — client-side. You fetched ALL objects; jq filtered after the fact. Slow on large clusters and burns API server time, but works for any condition.
+- **`-l key=value`** (label selector) — server-side, labels indexed, cheapest. Use whenever you can.
+- **`--field-selector status.phase=Pending`** — server-side but limited. Selectable fields are a small set per resource (commonly `metadata.name`, `metadata.namespace`, `spec.nodeName`, `status.phase`).
+- **`jq '.items[] | select(...)'`** — client-side. You fetched ALL objects; jq filtered after. Slow on large clusters, but works for any condition.
 
-Rule of thumb: prefer label selectors → field selectors → jq, in that order. If you find yourself jq-filtering by something that could be a label, add the label.
+Prefer labels → field selectors → jq, in that order. If you're jq-filtering by something that could be a label, add the label.
 
 </details>
 
