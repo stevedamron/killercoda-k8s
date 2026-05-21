@@ -236,6 +236,26 @@ Flags you'll combine endlessly: `-n <ns>`, `-A`, `-l key=value`, `-o wide` / `-o
 
 **`edit` vs `apply`:** `edit` is triage (opens live object, applies on save, diverges from GitOps); `apply` is declarative (three-way merge against your manifest, same operation Flux/Argo run). Change the manifest in git → `apply` for anything persistent. Read-only commands are safe anywhere; state-changing commands need a context check first — `breakfix-01` shows what happens when you skip it.
 
+#### Asking the cluster what it knows — `api-resources` and `explain`
+
+Two self-help commands that pay for themselves the first day on an unfamiliar cluster.
+
+`kubectl api-resources` lists every Kind the cluster knows about — built-in (`Pod`, `Deployment`, `Service`) plus any custom resources installed by CRDs or operators<sup><a href="https://kubernetes.io/docs/reference/kubectl/">[3]</a></sup>. Useful filters:
+
+```bash
+kubectl api-resources --api-group=apps      # apps/v1 group: Deployment, StatefulSet, DaemonSet, ReplicaSet
+kubectl api-resources --namespaced=false    # cluster-scoped only (Nodes, PVs, ClusterRoles, …)
+```
+
+`kubectl explain` prints the built-in schema docs for any resource or field<sup><a href="https://kubernetes.io/docs/reference/kubectl/">[3]</a></sup> — beats tab-completing through YAML or grepping for field names:
+
+```bash
+kubectl explain pod.spec.containers.livenessProbe
+kubectl explain deployment.spec --recursive   # every nested field, no descriptions
+```
+
+Field-level coverage depends on whether the resource author wrote docstrings. Core resources are well-documented; some third-party CRDs aren't. When `--recursive` returns the field tree but per-field descriptions are blank, the CRD author skipped the docs.
+
 <details>
 <summary>📖 Going deeper: server-side apply — why <code>kubectl apply</code> surprises you<sup><a href="https://kubernetes.io/docs/reference/using-api/server-side-apply/">[6]</a></sup></summary>
 

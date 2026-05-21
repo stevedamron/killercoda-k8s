@@ -66,6 +66,34 @@ timeout 5 kubectl get pods -n admin-portal --watch || true
 
 > One distinction worth knowing: `kubectl edit` is **triage** (opens the live object, your save applies it, you've now diverged from GitOps); `kubectl apply -f file.yaml` is **declarative** (same operation Flux/Argo run, a three-way merge against your manifest). See LESSON.md for the full contrast and when each is right.
 
+## Asking the cluster what it knows
+
+Two self-help commands that pay for themselves the first day on an unfamiliar cluster.
+
+**`kubectl api-resources`** — every Kind the cluster knows about, with short names and whether it's namespaced. Custom resources installed by CRDs or operators show up here too.
+
+```bash
+kubectl api-resources | head -15
+```{{exec}}
+
+Filter by API group when you only care about one ecosystem:
+
+```bash
+kubectl api-resources --api-group=apps
+```{{exec}}
+
+**`kubectl explain`** — built-in schema docs for any resource or field. Faster than guessing at YAML field names.
+
+```bash
+kubectl explain pod.spec.containers.livenessProbe
+```{{exec}}
+
+`--recursive` dumps every nested field — useful when hunting for where a setting lives:
+
+```bash
+kubectl explain deployment.spec --recursive | head -30
+```{{exec}}
+
 ## Working with running workloads
 
 A handful of idioms you'll reach for constantly when a workload is already up and you need to inspect, talk to, or get metrics out of it. Each is bite-sized — try them on the healthy fleet so the syntax sticks.
