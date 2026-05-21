@@ -248,21 +248,25 @@ kubectl config get-contexts
 **Fix:**
 
 ```bash
-# Option A: reset to default
-kubectl config set-context --current --namespace=default
+# Option A (recommended): scope to a workload namespace, so the verify
+# command produces visible workloads — visible proof the cluster was always fine.
+kubectl config set-context --current --namespace=app-services
 
-# Option B: scope to a namespace you actually want
-kubectl config set-context --current --namespace=admin-portal
+# Option B: clean-slate reset to `default`. Conventional, but `default` is
+# empty on this lab; useful as a deliberate reset between tasks.
+kubectl config set-context --current --namespace=default
 ```
 
 **Verify:**
 
 ```bash
 kubectl config view --minify | grep namespace:
-# namespace: default  (or whichever you set)
+# namespace: app-services  (or whichever you set)
 kubectl get pods
-# Returns pods (or "No resources found in default namespace" — that's expected for default,
-# but the namespace shown is now what you set)
+# Shows the namespace's workloads — proving the cluster was always healthy,
+# your view was scoped wrong. (If you used Option B and reset to `default`,
+# you'll still see "No resources found in default namespace" — but the
+# namespace in the error message now matches what you set, which is the point.)
 ```
 
 **What this scenario tests:**

@@ -2,10 +2,12 @@
 
 Two ways to fix this. Pick based on what you actually want:
 
-## Option A: reset the default namespace to `default`
+## Option A: scope to a workload namespace (recommended)
+
+Pick a Polyphone namespace and make it your default. The fleet has 10 named namespaces (`app-services`, `media`, `signaling`, `admin-portal`, `analytics`, etc.) — choose whichever fits the task you're about to do.
 
 ```bash
-kubectl config set-context --current --namespace=default
+kubectl config set-context --current --namespace=app-services
 ```{{exec}}
 
 Verify:
@@ -14,27 +16,31 @@ Verify:
 kubectl config view --minify | grep namespace:
 ```{{exec}}
 
-Should show `namespace: default`.
+Should show `namespace: app-services`.
 
 ```bash
 kubectl get pods
 ```{{exec}}
 
-Now scoped to `default` (which is also empty on this cluster — but you can see it returns "no resources in default" rather than the surprising `kube-public`).
-
-## Option B: pick a specific namespace you actually want
-
-If you know you want to work in `admin-portal`:
+You'll see the `app-services` workloads — visible proof the cluster was always healthy; your view was the problem. The same workloads also show up by their `plane` label (from baseline/step2):
 
 ```bash
-kubectl config set-context --current --namespace=admin-portal
+kubectl get pods -l plane=app -A
+```{{exec}}
+
+## Option B: clean-slate reset to `default`
+
+If you don't have a specific namespace in mind and just want to stop being scoped to `kube-public`, revert to Kubernetes' conventional default:
+
+```bash
+kubectl config set-context --current --namespace=default
 ```{{exec}}
 
 ```bash
 kubectl get pods
 ```{{exec}}
 
-You'll see the `portal-ui` pods.
+Returns nothing — `default` is empty on this lab (Polyphone workloads all live in named namespaces). But notice the error message now reads `No resources found in default namespace` — your scope is no longer surprising, which is the whole point.
 
 ## Confirm the alert was a false signal
 
