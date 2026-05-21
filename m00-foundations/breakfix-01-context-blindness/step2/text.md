@@ -19,6 +19,8 @@ kubectl edit deployment metrics-aggregator -n analytics
 
 ## Watch the rollout converge
 
+A **rollout** is what a Deployment does when its template changes: it spins up new Pods (under a new ReplicaSet) on the new spec, waits for them to become Ready, then tears down the old ones. `kubectl rollout status` blocks until the new ReplicaSet has the target number of ready Pods.
+
 ```bash
 kubectl rollout status deployment metrics-aggregator -n analytics
 ```{{exec}}

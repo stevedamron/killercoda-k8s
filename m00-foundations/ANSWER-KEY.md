@@ -5,7 +5,7 @@
 
 ## Lesson summary
 
-M00 teaches the mental model and the four-command diagnostic loop. The `baseline/` scenario walks you through cluster anatomy, the fleet, and the loop against a healthy workload. The `breakfix-01-context-blindness/` scenario tests the most fundamental instinct: when you don't know where a problem lives, can you scan the cluster cluster-wide to find it?
+M00 teaches the mental model and the four-command diagnostic loop. The `baseline/` scenario walks you through cluster anatomy, the fleet, and the loop against a healthy workload. Three break/fix scenarios then test the load-bearing instincts in isolation: `breakfix-01-context-blindness` (scan cluster-wide when you don't know where), `breakfix-02-event-only-failure` (climb the owner chain when Pod-level checks come up empty), and `breakfix-03-namespace-blindness` (suspect your own view before suspecting the cluster).
 
 ## Baseline tour reference
 

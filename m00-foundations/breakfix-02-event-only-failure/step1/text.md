@@ -47,7 +47,7 @@ Look at the `Events:` section at the bottom. You should see:
                               exceeded quota: pod-limit, requested: pods=1, used: pods=2, limited: pods=2
 ```
 
-That's the answer. A `ResourceQuota` in the namespace caps total pods at 2, and the Deployment wants 3.
+That's the answer. A **`ResourceQuota`** — a per-namespace cap on what objects can exist there (Pod count, total CPU/memory requests, PVC count) — limits this namespace to 2 pods, and the Deployment wants 3. The API server enforces quotas at admission time, which is why the failure surfaces as `forbidden: exceeded quota` rather than as a Pod that ran and then crashed.
 
 ## The shortcut: `kubectl get events`
 

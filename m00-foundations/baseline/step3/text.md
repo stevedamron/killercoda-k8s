@@ -35,7 +35,7 @@ kubectl describe pod -n admin-portal -l app=portal-ui
 - All of `metadata` (labels, annotations, owner references)
 - All of `spec` (image, ports, volumes, resources)
 - All of `status` (current conditions, container state, recent restart reasons)
-- **Events** filtered to this object's UID — every controller decision that touched this pod
+- **Events** filtered to this specific pod — every controller decision that touched it
 
 For a healthy pod, the Events section should show a clean sequence: `Scheduled` → `Pulled` → `Created` → `Started`. When things go wrong, this section is the first place to look.
 

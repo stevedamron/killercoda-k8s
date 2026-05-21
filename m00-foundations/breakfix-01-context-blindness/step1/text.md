@@ -12,7 +12,7 @@ Good first move: ask the cluster what it knows, cluster-wide.
 kubectl get pods -A
 ```{{exec}}
 
-Scan the `STATUS` column. Most pods should be `Running`. One workload will stand out — pods in `ImagePullBackOff` or `ErrImagePull`.
+Scan the `STATUS` column. Most pods should be `Running`. One workload will stand out — pods in `ImagePullBackOff` or `ErrImagePull` (the kubelet tried to fetch the container image, the registry said no, and the kubelet is now backing off retries with exponential delay).
 
 ## Alternative: sort events globally
 

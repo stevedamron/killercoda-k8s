@@ -27,22 +27,19 @@ You'll see (among others):
 | `kube-controller-manager-*` | Runs the built-in controllers (Deployment, ReplicaSet, etc.) |
 | `kube-scheduler-*`        | Decides which node each new pod runs on                       |
 | `coredns-*`               | Cluster DNS. Resolves `<svc>.<ns>.svc.cluster.local`.         |
-| `kube-proxy-*` *(optional)* | One per node. Programs iptables/IPVS for Services. Some setups (e.g. Cilium with kube-proxy replacement) skip it. |
+| `kube-proxy-*` *(optional)* | One per node. Programs iptables/IPVS rules for Services (the cluster's stable virtual IPs that load-balance to Pods). Some setups (e.g. Cilium with kube-proxy replacement) skip it. |
 
 These are not Polyphone workloads — they are the cluster itself. When the cluster misbehaves, this is the namespace to check first.
 
 ## Try the API server directly (optional)
 
-`kubectl` is a thin client. You can hit the same API with `curl` through `kubectl proxy`:
+`kubectl` is a thin REST client. You can ask it to skip the formatting and dump the raw API response:
 
 ```bash
-kubectl proxy --port=8001 &
-sleep 1
-curl -s http://localhost:8001/api/v1/namespaces | head -20
-kill %1
+kubectl get --raw /api/v1/namespaces | head -20
 ```{{exec}}
 
-You see the raw JSON the API server returns. `kubectl get namespaces` does exactly this and pretty-prints the result.
+That JSON is what the API server actually returns over HTTPS on port 6443 — `kubectl get namespaces` does exactly the same request, then pretty-prints the result. Every kubectl command is one of these REST calls under the hood; the magic is in the client, not the wire protocol.
 
 ## Verify
 

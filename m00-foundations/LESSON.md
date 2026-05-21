@@ -23,16 +23,26 @@ You operate dozens of clusters at Polyphone — across regions and environment t
 |------|------------|
 | **Control plane** | The components that decide what should run: API server, etcd, scheduler, controller manager. |
 | **Node** | A machine (VM or bare metal) that runs Pods. Hosts a kubelet and a container runtime. |
+| **Pod** | The smallest deployable unit. Wraps one or more **containers** that share a network namespace (one IP), storage volumes, and lifecycle. |
+| **Container** | The actual running process, packaged as an OCI image. A Pod runs one or more containers; in most cases it's exactly one. |
 | **API server** (`kube-apiserver`) | The single entry point to the cluster. Reads and writes etcd. Authenticates and authorizes every request. |
 | **etcd** | The cluster's database. A distributed key-value store holding desired and observed state of every object. |
 | **kubelet** | The agent on each node that talks to the API server and instructs the container runtime. |
 | **Controller** | A program that watches the API for objects of a certain kind and acts to make their `status` match their `spec`. |
 | **Object** (a.k.a. **resource**) | An addressable thing in the cluster: Pod, Deployment, Service, Node, etc. |
 | **Kind** | The type of an object — `Pod`, `Deployment`, `Service`. |
+| **Label / Selector** | A `key=value` tag attached to any object (label), and the filter syntax that finds objects by those tags (selector). Services, Deployments, and NetworkPolicies all use selectors to find the Pods they care about. |
 | **Namespace** | A logical grouping inside a cluster. Most objects are namespaced; a few (Nodes, PersistentVolumes, ClusterRoles) are cluster-scoped. |
 | **Spec** | The desired state declared on an object — what you want. |
 | **Status** | The observed state reported by controllers — what is. |
 | **Reconciliation** | The continuous loop in which controllers compare `spec` to `status` and try to converge them. |
+| **Deployment** | Workload controller for stateless, fungible Pods. Owns a ReplicaSet; handles rolling updates when the Pod template changes. |
+| **ReplicaSet** | The controller a Deployment creates to maintain a target replica count. You almost never write one directly — the Deployment owns and rolls it for you. |
+| **StatefulSet** | Workload controller for Pods that need stable identity (`name-0`, `name-1`), per-Pod persistent storage, and ordered start/stop. |
+| **DaemonSet** | Workload controller that runs exactly one Pod per (matching) node. Used for node-local agents — log shippers, network plugins, edge proxies. |
+| **Service** | A stable virtual IP + DNS name that load-balances across a set of Pods selected by labels. Types: `ClusterIP` (internal), `NodePort` (per-node port), `LoadBalancer` (cloud LB). |
+| **PersistentVolumeClaim (PVC)** | A Pod's request for persistent storage of a given size and class. Bound to a PersistentVolume (PV); PVCs are namespaced, PVs are cluster-scoped. |
+| **ResourceQuota** | A per-namespace cap on what can exist there — Pod count, total CPU/memory requests, PVC count, etc. The API server rejects creates that would exceed the cap. |
 | **Context** | A kubeconfig entry pointing at a cluster + user + default namespace. |
 | **Event** | A timestamped note attached to an object, describing something that happened to it. |
 

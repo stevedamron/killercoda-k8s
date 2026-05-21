@@ -11,7 +11,7 @@ Polyphone is a real-time communications platform. Its workloads are organized by
 | **control**   | Provisioning, routing, CDR, analytics, number porting  | `provisioning`, `call-routing`, `cdr-storage`, `analytics`, `number-porting` |
 | **admin**     | Operator-facing portal                                 | `admin-portal`                              |
 
-Every workload carries a `plane=...` label. You'll use that label a lot in later modules (notably M10 — NetworkPolicies).
+Every workload carries a `plane=...` **label** — a `key=value` tag attached to an object. **Selectors** (e.g., `-l plane=media`) filter on labels; this is how Services find their backing Pods, how Deployments pick which Pods they own, and how you grep the cluster. You'll use the `plane` label a lot in later modules (notably M10 — NetworkPolicies).
 
 ## See the whole fleet at once
 
@@ -20,6 +20,8 @@ kubectl get pods -A
 ```{{exec}}
 
 This is the canonical "what's running anywhere on this cluster" command. Memorize it. It is the first thing you should type whenever you're triaging an unfamiliar situation.
+
+Quick vocabulary before reading the output: a **Pod** is the smallest deployable unit — one or more containers that share a network IP and lifecycle. A **namespace** is a logical grouping inside the cluster used for organization, RBAC scoping, quotas, and DNS. Almost everything you'll touch in this curriculum is a Pod, living in a namespace.
 
 You should see ~25 pods spread across the Polyphone namespaces, plus the `kube-system`, `local-path-storage`, and `kube-public` infrastructure namespaces.
 
@@ -37,7 +39,19 @@ The `plane` label cuts the fleet by architectural responsibility. In later modul
 
 ## Look at the different workload types
 
-Polyphone uses every major workload archetype:
+The choice of workload controller encodes an assumption about the workload. Here's the cheat sheet:
+
+| Controller | Use when | Pod identity | Polyphone example |
+|---|---|---|---|
+| **Deployment** | Pods are stateless and interchangeable; any replica can serve any request. | Random suffix, anonymous, fungible. | `sip-router`, `portal-ui` |
+| **StatefulSet** | Pods need a stable name + their own **PVC** (a Pod's request for persistent storage), and must start/stop in order. | `name-0`, `name-1`, … — sticky. | `media-engine`, `reg-proxy`, `presence`, `pstn-gateway` |
+| **DaemonSet** | You need exactly one Pod per (matching) node — typically a host-level agent. | One per node. | `sbc-edge` (per-node edge proxy) |
+| **Job** | Run-to-completion batch work; success means the Pod exited 0. | Throwaway. | (covered in M07) |
+| **CronJob** | A Job, on a schedule. | Throwaway. | (covered in M07) |
+
+> `ReplicaSet` is what a Deployment creates and manages internally to track desired replica count. You almost never write one yourself — you write a Deployment, and the Deployment controller manages its ReplicaSets across rolling updates.
+
+See them in the cluster:
 
 ```bash
 kubectl get deployments -A
@@ -51,7 +65,7 @@ kubectl get statefulsets -A
 kubectl get daemonsets -A
 ```{{exec}}
 
-You'll see Deployments for stateless workloads (`sip-router`, `portal-ui`), StatefulSets where stable network identity matters (`media-engine`, `reg-proxy`, `presence`, `pstn-gateway`), and a DaemonSet for the per-node `sbc-edge` agent.
+Notice the pattern: stateless web/API tier → Deployment. Anything that holds session state, registration state, or per-Pod storage → StatefulSet. Per-node agents → DaemonSet. When you're staring at an unfamiliar workload, the controller type tells you 80% of what to expect about its identity, lifecycle, and storage model.
 
 ## Verify
 
