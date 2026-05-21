@@ -38,10 +38,10 @@ You should see one `Running` pod with `1/1 READY`, `0` restarts.
 ## Confirm the alert would now clear
 
 ```bash
-kubectl get pods -A --field-selector=status.phase!=Running --no-headers | wc -l
+kubectl get pods -A -l plane --field-selector=status.phase!=Running --no-headers | wc -l
 ```{{exec}}
 
-The result should be `0` (or only short-lived `Pending` pods that are rolling out). The fleet is back to green.
+The result should be `0` (or only short-lived `Pending` pods rolling out). We scope with `-l plane` to count only Polyphone workloads — a bare `-A` also catches cluster-service pods (e.g., `local-path-provisioner` helpers) that legitimately sit in `Succeeded` phase and would inflate the count.
 
 ## What this scenario tested
 

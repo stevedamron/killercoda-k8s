@@ -64,8 +64,10 @@ kubectl get pods -n analytics -w
 When done, confirm the fleet is back to green:
 
 ```bash
-kubectl get pods -A --field-selector=status.phase!=Running --no-headers | wc -l
-# Expect 0 (or a brief transient as old ReplicaSets clean up)
+kubectl get pods -A -l plane --field-selector=status.phase!=Running --no-headers | wc -l
+# Expect 0 (or a brief transient as old ReplicaSets clean up).
+# `-l plane` scopes to Polyphone workloads; otherwise `-A` also surfaces
+# cluster-service helpers in `Succeeded` phase, which inflates the count.
 ```
 
 **What this scenario tests:** The lesson is not fixing an image typo — that's trivial. The lesson is **finding the broken thing without being told where**. Self-grading questions:
@@ -79,7 +81,7 @@ kubectl get pods -A --field-selector=status.phase!=Running --no-headers | wc -l
 
 `kubectl get pods -A` returns everything. Real clusters have thousands of Pods; that output is unreadable. Three flags make it tractable:
 
-- `--field-selector=status.phase!=Running` — only the unhappy ones
+- `--field-selector=status.phase!=Running,status.phase!=Succeeded` — only the unhappy ones (`Succeeded` is a good terminal state for Job/CronJob pods and for some lab helpers like `local-path-provisioner`)
 - `--field-selector=spec.nodeName=<node>` — only Pods on a specific node (useful when triaging a node-level issue)
 - `-o jsonpath='...'` — extract only the field you care about
 
@@ -87,7 +89,7 @@ Combine them:
 
 ```bash
 # All non-Running pods cluster-wide, with their namespace and phase
-kubectl get pods -A --field-selector=status.phase!=Running \
+kubectl get pods -A --field-selector=status.phase!=Running,status.phase!=Succeeded \
   -o custom-columns=NS:.metadata.namespace,NAME:.metadata.name,PHASE:.status.phase
 ```
 

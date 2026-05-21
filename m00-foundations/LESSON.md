@@ -212,10 +212,12 @@ The most common skipped step is `events`. Many problems have an answer that's pl
 When you don't know which namespace something is in, pivot to cluster-wide before zooming in:
 
 ```bash
-kubectl get pods -A                                            # everything, everywhere
-kubectl get pods -A --field-selector=status.phase!=Running     # only the unhappy ones
-kubectl get events -A --sort-by='.lastTimestamp' | tail -50    # recent activity, cluster-wide
+kubectl get pods -A                                                                    # everything, everywhere
+kubectl get pods -A --field-selector=status.phase!=Running,status.phase!=Succeeded     # only the unhappy ones (excludes Completed)
+kubectl get events -A --sort-by='.lastTimestamp' | tail -50                            # recent activity, cluster-wide
 ```
+
+> Why `!=Succeeded`? A Pod's `status.phase` has five values: `Pending`, `Running`, `Succeeded`, `Failed`, `Unknown`. `Succeeded` is a *good* terminal state (typical of Job/CronJob pods that finished cleanly). Filtering only `!=Running` would lump Completed pods in with the broken ones. In labs you'll also see this with `local-path-provisioner` helper pods that exit `Succeeded` after binding a PVC.
 
 The `-A` flag (alias of `--all-namespaces`) is your friend whenever you're triaging an unfamiliar situation. The first command for "something is broken somewhere on the cluster" is always `kubectl get pods -A`.
 

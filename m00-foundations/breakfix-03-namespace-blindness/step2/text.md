@@ -41,10 +41,10 @@ You'll see the `portal-ui` pods.
 The cluster was healthy the whole time. Sanity-check fleet-wide:
 
 ```bash
-kubectl get pods -A --field-selector=status.phase!=Running --no-headers | wc -l
+kubectl get pods -A -l plane --field-selector=status.phase!=Running --no-headers | wc -l
 ```{{exec}}
 
-Should be `0`. Fleet is green; the alert was either stale, misrouted, or your monitoring was pointing at the same misconfigured kubeconfig you were. (In a real shop, the *alert* is now the bug — investigate why it fired against a healthy cluster.)
+Should be `0`. We scope with `-l plane` to count only Polyphone workloads — a bare `-A` also catches cluster-service helpers (e.g., `local-path-provisioner`) that legitimately sit in `Succeeded` phase. Fleet is green; the alert was either stale, misrouted, or your monitoring was pointing at the same misconfigured kubeconfig you were. (In a real shop, the *alert* is now the bug — investigate why it fired against a healthy cluster.)
 
 ## What this scenario tested
 
